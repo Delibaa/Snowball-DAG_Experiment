@@ -1,0 +1,86 @@
+Local IP address is: 10.8.0.2
+Provided public ip:127.0.0.1:
+[+] Set configuration from _configuration
+	 ::: CHAINS = 10
+	 ::: MAX_PEERS = 5
+	 ::: MAX_ASK_BLOCKS = 20
+	 ::: BLOCK_SIZE_IN_BYTES = 20480
+	 ::: EXPECTED_MINE_TIME_IN_MILLISECONDS = 5000
+	 ::: PRINT_BLOCKCHAIN_EACH_MILLISECONDS = 5000
+	 ::: PRINT_SENDING_MESSAGES = 1
+	 ::: PRINT_RECEIVING_MESSAGES = 1
+	 ::: PRINT_MINING_MESSAGES = 1
+	 ::: PRINT_INTERRUPT_MESSAGES = 0
+	 ::: PRINT_PEER_CONNECTION_MESSAGES = 1
+	 ::: PRINT_TRANSMISSION_ERRORS = 0
+	 ::: PRINT_VERIFYING_TXS = 0
+	 ::: WRITE_SESSIONS_TO_HDD = 0
+	 ::: ASK_FOR_INCOMPLETE_EACH_MILLISECONDS = 50
+	 ::: ASK_FOR_INCOMPLETE_INDIVIDUAL_MILLISECONDS = 60
+	 ::: ASK_FOR_FULL_BLOCKS_EACH_MILLISECONDS = 200
+	 ::: ASK_FOR_FULL_BLOCKS_INDIVIDUAL_EACH_MILLISECONDS = 550
+	 ::: MAX_WAIT_FOR_FULL_BLOCK_MILLSECONDS = 1000
+	 ::: MAX_ASK_NON_FULL_IN_ONE_GO = 20
+	 ::: WRITE_HASH_TO_HDD = 1
+	 ::: STORE_HASH_FREQ = 1
+	 ::: STORE_HASH_MINUS = 6
+	 ::: PING_MIN_WAIT = 3
+	 ::: PING_MAX_WAIT = 6
+	 ::: PING_REPEAT = 0
+	 ::: STORE_BLOCKS = 1
+	 ::: BLOCKS_STORE_FREQUENCY = 2
+	 ::: NO_DISCARD_LOCAL = 30
+	 ::: RUN_NETWORK_EACH_MILLISECONDS = 40
+	 ::: REJECT_CONNECTIONS_FROM_UNKNOWNS = 0
+[ ] Bootstraping the blockchain ...  Done !
+[ ] Adding peers from _peers
+Peers:
+	127.0.0.1 : 8001   connected: 0
+[33;1m[ ] Will mine new block in  7.049  seconds 
+[0m[32;1m[+] Connected to peer 127.0.0.1:8001[0m
+[33;1m[ ] mining succeed! 
+[0m[33;1m[ ] Will mine new block in  24.285  seconds 
+[0m[32;1m[+] Connection established from 127.0.0.1:48922
+[0m[32;1m127.0.0.1:8001 SENDS message mining succeed! 
+[0m[32;1m127.0.0.1:8001 HAVE mined block successfully and become a member of consensus group
+[0m
+[32;1m127.0.0.1:8001 SENDS message mining succeed! 
+[0m[32;1m127.0.0.1:8001 HAVE mined block successfully and become a member of consensus group
+[0m
+[32;1m127.0.0.1:8001 SENDS message mining succeed! 
+[0m[32;1m127.0.0.1:8001 HAVE mined block successfully and become a member of consensus group
+[0m
+[32;1m127.0.0.1:8001 SENDS message mining succeed! 
+[0m[32;1m127.0.0.1:8001 HAVE mined block successfully and become a member of consensus group
+[0m
+[32;1m127.0.0.1:8001 SENDS message mining succeed! 
+[0m[32;1m127.0.0.1:8001 HAVE mined block successfully and become a member of consensus group
+[0m
+[32;1m Have a consensus block from leader 127.0.0.1:8001
+[0m
+[33;1m[+] Mined block on chain[5] : [5 65fd74825c5bd30]
+[0m====#verified_1,127.0.0.1,8002,5,5,459322391886413104,500,1,0,1,1,1,1,501,3909731061=====
+=============Sending verify1 of block 65fd74825c5bd30 message to all peers==========
+[32;1m127.0.0.1:8001 ASKING to vote on the block
+[0m
+=====test info dd73978c126f8e16, 0000000000000006=====[34;1mSending 6: (6 dd73978c126f8e16) to all peers[0m
+[34;1mSENDING VOTES IN PHASE 1!! to peer 127.0.0.1:8001, with votes 1[0m
+[32;1m127.0.0.1:8001 Had voted on the block with 9
+[0m
+=======block 459322391886413104 has become a full block======
+==========The consensus round 1 has been finished, time duration 24.48===========
+=======the peer 127.0.0.1:8001 is not the member of consensus group!============the peer 127.0.0.1:8001 is not the member of consensus group!============the peer 127.0.0.1:8001 is not the member of consensus group!============the peer 127.0.0.1:8001 is not the member of consensus group!============the peer 127.0.0.1:8001 is not the member of consensus group!============the peer 127.0.0.1:8001 is not the member of consensus group!============the peer 127.0.0.1:8001 is not the member of consensus group!============the peer 127.0.0.1:8001 is not the member of consensus group!=====[32;1m127.0.0.1:8001 BEGS for got full block chain:block   5 : 65fd74825c5bd30  
+[0m[34;1m1mIhaveFullBlock 5: 65fd74825c5bd30 to peer 127.0.0.1:8001[0m
+[32;1m127.0.0.1:8001 WANTS full block chain:block   5 : 65fd74825c5bd30  
+[0m[34;1mSENDING FULLBLOCK!! 5: 65fd74825c5bd30 to peer 127.0.0.1:8001[0m
+[34;1mGotFullBlock 6: dd73978c126f8e16 from all peers[0m
+[32;1m127.0.0.1:8001 HAVE full block chain:block   6 : dd73978c126f8e16  
+[0m[34;1mASKFULLBLOCK 6: dd73978c126f8e16 to peer 127.0.0.1:8001[0m
+[32;1m127.0.0.1:8001 NICE FULL BLOCKS chain:block   6 : dd73978c126f8e16  
+[0m[32;1m127.0.0.1:8001 PROVIDES full chain:block   6 : dd73978c126f8e16
+[0m[32;1m127.0.0.1:8001 SENDS message mining succeed! 
+[0m[32;1m127.0.0.1:8001 HAVE mined block successfully and become a member of consensus group
+[0m
+[32;1m127.0.0.1:8001 ASKING to vote on the block
+[0m
+=====test info 2af5d0d1a01e2db0, 0000000000000000=====[34;1mSending 0: (0 2af5d0d1a01e2db0) to all peers[0m
