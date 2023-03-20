@@ -384,7 +384,7 @@ bool parse__consensus_block (vector<std::string> sp, map<string,int> &passed, st
 
 }
 
-string create__verified_1_info(network_block *nb)
+string create__verified_1_info(network_block *nb, string random)
 {
     string s = "#verified_1,"+my_ip+","+to_string(my_port)+","+to_string(nb->chain_id)+","+to_string(nb->parent)+","+to_string(nb->hash)+",";
     s += to_string(nb->no_txs) + ",";
@@ -395,15 +395,16 @@ string create__verified_1_info(network_block *nb)
     s += to_string(nb->consensusPart.order_in_round)+ ",";
     s += to_string(nb->consensusPart.tx_list.first)+ ",";
     s += to_string(nb->consensusPart.tx_list.second)+ ",";
-    s += nb->consensusPart.merkel_root_of_txs;
+    s += nb->consensusPart.merkel_root_of_txs+ ",";
+    s += random;
     return s;
 }
 
 bool parse__verified_1_info (vector<std::string> sp, map<string,int> &passed, string &sender_ip, uint32_t &sender_port, network_block &nb)
 {
-    if( sp.size() < 15 ) return false;
+    if( sp.size() < 16 ) return false;
     //需要修改
-    if(key_present(sp[0]+sp[1]+sp[2]+sp[3]+sp[4]+sp[5], passed)) return false;
+    if(key_present(sp[0]+sp[1]+sp[2]+sp[3]+sp[4]+sp[5]+sp[15], passed)) return false;
 
     bool pr = true;
     sender_ip = sp[1];

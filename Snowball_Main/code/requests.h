@@ -42,7 +42,7 @@ bool parse__mining_succeed (vector<std::string> sp, map<string,int> &passed, str
 string create__consensus_block(int round, int order, int tx_first, int tx_second);
 bool parse__consensus_block (vector<std::string> sp, map<string,int> &passed, string &sender_ip, uint32_t &sender_port, consensus_part &cp);
 
-string create__verified_1_info(network_block *nb);
+string create__verified_1_info(network_block *nb, string random);
 bool parse__verified_1_info (vector<std::string> sp, map<string,int> &passed, string &sender_ip, uint32_t &sender_port, network_block &nb);
 
 string create__answer_verified_1_info(BlockHash hash, int votes);

@@ -21,6 +21,15 @@ typedef struct miner_info{
 }miner_info;
 
 
+typedef struct historyinfo{
+
+    int round;
+    vector<miner_info> miner;
+    float time_consumption;
+
+}history_info;
+
+
 class Consensus_Group{
 public:
 
@@ -28,7 +37,8 @@ public:
     vector<miner_info> miner_list;
     int round;
     bool state;
-    map<int, unsigned long> consensus_time;
+    map<int, float> consensus_time;
+    map<int, history_info> history;
 
 
     bool locker_write = false;
@@ -44,6 +54,7 @@ public:
     bool legitimate_certificate(bool certificate);
     bool is_in_Consensus_Group(std::string ip, uint32_t port);
     miner_info *get_member_in_Consensus_Group(std::string ip, uint32_t port);
+    bool add_in_history(int round, vector<miner_info> miner_list, float time);
 
     //这个函数需要改进，使用rand()生成随机数
     pair<string, uint32_t> choose_leader();

@@ -114,12 +114,14 @@ public:
 
 
     //consensus block part
+	map<BlockHash,pair<int,unsigned long>> blocks_in_phase_validate;
     map<BlockHash, network_block> waiting_for_phase_1_block;
     unsigned long total_ask_for_verify1_blocks_in_one_round;
     unsigned long total_verify_local_block;
 
     //consensus block part
     bool add_waiting_for_phase_1_blocks( BlockHash hash, network_block nb);
+	void set_block_validated_in_phase_validate(uint32_t chain_id, BlockHash hash);
 
 
 	bool locker_write = false;

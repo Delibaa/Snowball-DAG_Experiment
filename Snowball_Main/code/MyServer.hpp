@@ -133,6 +133,7 @@ private:
   std::unique_ptr<boost::asio::deadline_timer> t;
   unsigned long last_ask_for_incomplete;
   unsigned long last_ask_for_full;
+  unsigned long last_ask_for_vote;
   unsigned long last_print_blockchain;
   unsigned long last_peer_connect;
   unsigned long last_update_commited;

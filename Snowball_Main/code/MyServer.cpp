@@ -180,7 +180,7 @@ tcp_connection::tcp_connection(boost::asio::io_service& io_service)
 
 tcp_server::tcp_server(boost::asio::io_service& io_service, string ip, uint32_t port)
 : acceptor_(io_service, tcp::endpoint(tcp::v4(), port)), my_ip(ip), my_port(port), t(new boost::asio::deadline_timer(io_service)), 
-  last_ask_for_incomplete(0), last_print_blockchain(0), last_update_commited(0), bytes_received(0), bytes_txs_received(0), folder_blockchain(string(FOLDER_BLOCKCHAIN)), folder_transaction_pool(string(FOLDER_TRANSACTION_POOL))
+  last_ask_for_incomplete(0),last_ask_for_vote(0), last_print_blockchain(0), last_update_commited(0), bytes_received(0), bytes_txs_received(0), folder_blockchain(string(FOLDER_BLOCKCHAIN)), folder_transaction_pool(string(FOLDER_TRANSACTION_POOL))
 {
     start_accept();
 
@@ -503,6 +503,27 @@ void tcp_server::run_network()
         }     
       }
       last_ask_for_incomplete = time_of_now;
+  }
+
+
+  //Get votes for blocks
+  if( time_of_now - last_ask_for_vote > ASK_FOR_VOTE_OF_BLOCKS_IN_PHSAE_VALIDATE_EACH_MILLISECONDS && cg->is_consensus_started() ){
+    
+    // map<BlockHash, network_block> blocks_phase_1 = bc->waiting_for_phase_1_block;
+    
+    for(auto it = bc->waiting_for_phase_1_block.begin(); it != bc->waiting_for_phase_1_block.end(); it++ ){
+      if( PRINT_SENDING_MESSAGES ){
+        printf ("\033[34;1m SENDING block %lx to the peer, PHASE VALIDATE!\033[0m\n", it->second.hash);
+        fflush(stdout);
+     }
+     string random = to_string(rng());
+     string s = create__verified_1_info(&it->second, random);
+     write_to_all_peers(s);
+
+    }
+    
+
+    last_ask_for_vote = time_of_now;
   }
 
 

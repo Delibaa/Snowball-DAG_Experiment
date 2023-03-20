@@ -17,6 +17,7 @@ Consensus_Group::Consensus_Group()
     concurrency_block_numbers = 0;
     miner_list.clear();
     consensus_time.clear();
+    history.clear();
     round = 1;
     state = false;
 
@@ -109,6 +110,24 @@ bool Consensus_Group::is_consensus_started() {
 
 }
 
+bool Consensus_Group::add_in_history(int round, vector<miner_info> miner_list, float time){
+
+    //A history
+    history_info A_history;
+    A_history.round = round;
+    for(int i = 0; i < miner_list.size();i++){
+        A_history.miner.push_back(miner_list[i]);
+    }
+    A_history.time_consumption = time;
+
+    //upadating consensus group
+    consensus_time.insert(pair<int, float>(round, time));
+    history.insert(pair<int, history_info>(round, A_history));
+
+    return true;
+
+}
+
 
 bool Consensus_Group::legitimate_certificate(bool certificate) {
     //修改成为验证逻辑
@@ -130,7 +149,7 @@ void Consensus_Group::print_consensus_info(){
     printf("\n=============== [PAST CONSENSUS TIME: ]\n");
     if(!consensus_time.empty()){
         for(int i =1; i<= consensus_time.size();i++){
-            printf("\n===============The round %d finished in %ld\n",consensus_time.find(1)->first, consensus_time.find(1)->second);
+            printf("\n===============The round %d finished in %.2f\n",consensus_time.find(i)->first, consensus_time.find(i)->second);
         }
     }
 }

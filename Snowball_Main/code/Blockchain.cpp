@@ -456,6 +456,7 @@ Blockchain::Blockchain(BlockHash hashes[MAX_CHAINS])
     total_ask_for_verify1_blocks_in_one_round = 0;
     total_verify_local_block = 0;
     waiting_for_phase_1_block.clear();
+	blocks_in_phase_validate.clear();
 
 
 	receiving_latency = receving_total = 0;
@@ -1001,12 +1002,31 @@ void Blockchain::update_blocks_commited_time()
 //consensus_part
 bool Blockchain::add_waiting_for_phase_1_blocks( BlockHash hash, network_block nb)
 {
-    if(waiting_for_phase_1_block.find(hash) != waiting_for_phase_1_block.end()){
-		string message = blockhash_to_string(hash);
-        printf("=========Block %s has been in the waiting queue=========", message.c_str());
-        return false;
-    }
 
-    waiting_for_phase_1_block.insert(make_pair(hash, nb));
-    return true;
+	if ( blocks_in_phase_validate.find(hash) == blocks_in_phase_validate.end() && !have_full_block(nb.chain_id, hash)){
+		blocks_in_phase_validate.insert( make_pair(hash, make_pair(nb.chain_id, 0)));
+		waiting_for_phase_1_block.insert(make_pair(hash, nb));
+		return true;
+	}
+
+	string message = blockhash_to_string(hash);
+    printf("=========Block %s has been in the waiting queue=========", message.c_str());
+    return false;
+
+}
+
+void Blockchain::set_block_validated_in_phase_validate(uint32_t chain_id, BlockHash hash){
+	if(blocks_in_phase_validate.find(hash) != blocks_in_phase_validate.end()){
+		blocks_in_phase_validate.erase(hash);
+	}
+	if(waiting_for_phase_1_block.find(hash) != waiting_for_phase_1_block.end()){
+		waiting_for_phase_1_block.erase(hash);
+	}
+
+	block *bz = find_block_by_hash( this->chains[chain_id], hash );
+	if (NULL != bz){
+		bz->is_full_block = true;
+	}
+
+
 }
