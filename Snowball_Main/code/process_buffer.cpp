@@ -1,4 +1,6 @@
 #include <boost/thread/mutex.hpp>
+#include <boost/thread.hpp>
+#include <boost/thread/thread.hpp>
 #include "process_buffer.h"
 
 
@@ -445,7 +447,7 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
                   unsigned long time_of_now = std::chrono::system_clock::now().time_since_epoch() /  std::chrono::milliseconds(1);
                   string required_time_to_send=to_string( (time_of_now > sent_time) ? (time_of_now - sent_time) : 0    );
                   bc->set_block_full( chain_id, hash, sender_ip+":"+to_string(sender_port)+" "+required_time_to_send );
-                  ser->additional_verified_transaction(nb.no_txs);
+                  ser->additional_verified_transaction(n->no_txs);
 
 
 
@@ -510,6 +512,9 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
            if(cg->get_concurrency_block_numbers() >= CONCURRENCY_BLOCKS){
             
                cg->start_consensus_of_blocks();
+
+               mythread->interrupt();//是否释放指针，如果没有需要使用智能指针
+
                pair<string, uint32_t> leader_info = cg->choose_leader();
                string leader_ip = leader_info.first;
                uint32_t leader_port = leader_info.second;
@@ -529,6 +534,7 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
             cg->locker_write = false;
             l.unlock();
             cg->can_write.notify_one();
+
 
 
           if ( PRINT_RECEIVING_MESSAGES ){
@@ -780,6 +786,11 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
                       cg->round++;
                       cg->state = false;
                       bc->total_ask_for_verify1_blocks_in_one_round = 0;
+                      
+                    //   //这个地方肯定会有问题，感觉上会造成严重的内存浪费，待优化
+                    //   boost::thread t(miner, bc, cg);
+                    //   mythread = &t;
+
                   }
               }
           }

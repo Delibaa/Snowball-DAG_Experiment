@@ -35,6 +35,7 @@ string my_ip="badip";
 uint32_t my_port;
 mt19937 rng;
 unsigned long time_of_start;
+unsigned long time_of_consensus_group_start;
 boost::thread *mythread;
 tcp_server *ser=NULL;
 

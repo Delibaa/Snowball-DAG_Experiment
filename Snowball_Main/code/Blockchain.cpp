@@ -808,6 +808,35 @@ vector< pair <BlockHash, uint32_t> > Blockchain::get_non_full_blocks( unsigned l
 }
 
 
+vector< pair < BlockHash, network_block > > Blockchain::get_waiting_for_validate_phase_blocks(unsigned long time_of_now){
+
+	vector< pair <BlockHash, network_block>> wvb;
+	vector <BlockHash> to_remove;
+
+	for (auto it = blocks_in_phase_validate.begin(); it !=blocks_in_phase_validate.end(); it++){
+		if( time_of_now - it->second.second >ASK_FOR_VOTE_OF_BLOCKS_IN_PHSAE_VALIDATE_INDIVIDUAL_EACH_MILLISECONDS){
+
+			it->second = make_pair(it->second.first, time_of_now);
+			block *bz = find_block_by_hash(this->chains[it->second.first], it->first);
+
+			if(NULL !=bz && !(bz->is_full_block)){
+				auto nb = waiting_for_phase_1_block.find(it->first);
+				wvb.push_back(make_pair(it->first, nb->second));
+			}
+			else if(NULL != bz && bz->is_full_block)
+			    to_remove.push_back(it->first);
+		}
+	}
+
+	for( int i = 0; i< to_remove.size();i++){
+		if(blocks_in_phase_validate.find(to_remove[i]) != blocks_in_phase_validate.end())
+		    blocks_in_phase_validate.erase(to_remove[i]);
+
+	}
+
+	return wvb;
+}
+
 
 void Blockchain::remove_waiting_blocks( unsigned long time_of_now )
 {
@@ -904,7 +933,7 @@ void Blockchain::update_blocks_commited_time()
 				int count = 0;
 //				while( NULL != t && count++ < T_DISCARD[j] )
 //					t = t->parent;
-//				if (NULL == t) continue;
+				if (NULL == t) continue;
 
 				while ( NULL != t  ){
 					if (  t->is_full_block &&  NULL != t->nb && 0 == t->nb->time_partial[j]   &&  time_of_now > t->nb->time_mined ){
@@ -1005,6 +1034,7 @@ bool Blockchain::add_waiting_for_phase_1_blocks( BlockHash hash, network_block n
 
 	if ( blocks_in_phase_validate.find(hash) == blocks_in_phase_validate.end() && !have_full_block(nb.chain_id, hash)){
 		blocks_in_phase_validate.insert( make_pair(hash, make_pair(nb.chain_id, 0)));
+
 		waiting_for_phase_1_block.insert(make_pair(hash, nb));
 		return true;
 	}

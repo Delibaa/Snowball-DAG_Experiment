@@ -146,7 +146,7 @@ void tcp_connection::start()
             //fflush(stdout);
           }
 
-          start();
+          // start();
 
         });
 
@@ -180,7 +180,7 @@ tcp_connection::tcp_connection(boost::asio::io_service& io_service)
 
 tcp_server::tcp_server(boost::asio::io_service& io_service, string ip, uint32_t port)
 : acceptor_(io_service, tcp::endpoint(tcp::v4(), port)), my_ip(ip), my_port(port), t(new boost::asio::deadline_timer(io_service)), 
-  last_ask_for_incomplete(0),last_ask_for_vote(0), last_print_blockchain(0), last_update_commited(0), bytes_received(0), bytes_txs_received(0), folder_blockchain(string(FOLDER_BLOCKCHAIN)), folder_transaction_pool(string(FOLDER_TRANSACTION_POOL))
+  last_ask_for_incomplete(0), last_ask_for_vote(0), last_print_blockchain(0), last_update_commited(0), bytes_received(0), bytes_txs_received(0), folder_blockchain(string(FOLDER_BLOCKCHAIN)), folder_transaction_pool(string(FOLDER_TRANSACTION_POOL))
 {
     start_accept();
 
@@ -510,18 +510,21 @@ void tcp_server::run_network()
   if( time_of_now - last_ask_for_vote > ASK_FOR_VOTE_OF_BLOCKS_IN_PHSAE_VALIDATE_EACH_MILLISECONDS && cg->is_consensus_started() ){
     
     // map<BlockHash, network_block> blocks_phase_1 = bc->waiting_for_phase_1_block;
-    
-    for(auto it = bc->waiting_for_phase_1_block.begin(); it != bc->waiting_for_phase_1_block.end(); it++ ){
+    vector <pair <BlockHash, network_block>> blocks = bc->get_waiting_for_validate_phase_blocks(time_of_now);
+
+    for (auto it = blocks.begin(); it !=blocks.end(); it++ ){
       if( PRINT_SENDING_MESSAGES ){
         printf ("\033[34;1m SENDING block %lx to the peer, PHASE VALIDATE!\033[0m\n", it->second.hash);
         fflush(stdout);
-     }
-     string random = to_string(rng());
-     string s = create__verified_1_info(&it->second, random);
-     write_to_all_peers(s);
+      }
+
+
+      string random = to_string(1);
+      string s = create__verified_1_info(&it->second, random);
+      write_to_all_peers(s);
+
 
     }
-    
 
     last_ask_for_vote = time_of_now;
   }
@@ -584,11 +587,11 @@ void tcp_server::run_network()
 
       // unsigned long time_of_finish = std::chrono::system_clock::now().time_since_epoch() /  std::chrono::milliseconds(1);
       // float secs = (time_of_finish - time_of_start)/ 1000.0;
+      
+      // unsigned long tx_size = create_one_transaction().size();
     
       // printf("-------------------------------------Server: %s:%d-------------------------------------------\n", my_ip.c_str(), my_port);
-      // printf("\n=============== [MAIN:   ]    #Chains:  %4d   Mine time: %7.0f msecs   Block size : %.0f KB  Localblocks: ", CHAINS, (float)EXPECTED_MINE_TIME_IN_MILLISECONDS, (float)BLOCK_SIZE_IN_BYTES/1024.0);
-      // for( int j=0; j<NO_T_DISCARDS;j ++)
-      //   printf("%d ", T_DISCARD[j]);
+      // printf("\n=============== [MAIN:   ]    #Chains:  %4d   Mine time: %7.0f msecs   Block size : %.0f KB   Transaction size: %.2f KB ", CHAINS, (float)EXPECTED_MINE_TIME_IN_MILLISECONDS, (float)BLOCK_SIZE_IN_BYTES/1024.0, (float)tx_size/1024.0);
       // printf("\n");
       
       // printf("\n=============== [NETWORK:]    #Peers    : %3d :  ", no_connected_peers() );
@@ -599,6 +602,14 @@ void tcp_server::run_network()
       //   printf ("\033[0m" );
       // }
       // printf("\n");
+      // // int block_mine = 0;
+      // // for(int i = 0; i < cg->history.size(); i++){
+      // //   for(int j = 0; j < history[i]->second.miner.size(); j++){
+      // //     if(history[i]->second.miner[j]->ip == my_ip && history[i]->second.miner[j]->port == my_port) block_mine += history[i]->second.miner[j]->share_of_block;
+      // //   }
+      // // }
+      // // unsigned long mine_block_txs = block_mine*TX_NUMBERS_IN_A_BLOCK;
+      // // unsigned long mine_block_bytes = block_mine*TX_NUMBERS_IN_A_BLOCK*tx_size;
       // printf("\n=============== [NETWORK THROUGHPUT:] MB: %.1f   MB/s: %.2f    GB/h:  %.1f  ::::  txs MB/s:  %.2f  txs GB/h:  %.1f \n",
       //        bytes_received/(1024.0*1024), bytes_received/(1024.0*1024)/secs, bytes_received/(1024.0*1024)/secs * 3600/1000,
       //   bytes_txs_received/(1024.0*1024)/secs, bytes_txs_received/(1024.0*1024)/secs * 3600/1000);

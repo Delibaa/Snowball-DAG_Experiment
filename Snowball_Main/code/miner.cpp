@@ -27,6 +27,7 @@ SOFTWARE.
 #include <iomanip>
 #include <boost/chrono.hpp>
 #include <boost/thread/thread.hpp>
+#include <boost/thread.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/asio.hpp>
@@ -112,6 +113,9 @@ bool mine_new_block( Blockchain *bc, consensus_part cp)
 
 	// Create file holding the whole block
 	// Supposedly composed of transactions
+
+    // blank block now
+
     //！！！！在交易池中取block，取交易的时候添加一个双花判定的逻辑（根据交易list中的交易哈希），有双花则发送节点为恶意节点
 
 //    uint32_t no_txs = create_transaction_block( new_block , ser->get_server_folder()+"/"+blockhash_to_string( new_block ));
@@ -124,7 +128,7 @@ bool mine_new_block( Blockchain *bc, consensus_part cp)
         return false;
     }
 
-	// Find Merkle path for the winning chain，这个地方考虑去掉以及去掉验证
+	// Find Merkle path for the winning chain
 	vector <string> proof_new_chain = compute_merkle_proof( leaves, chain_id );
 
 	// Last block of the chain where new block will be mined
@@ -182,16 +186,6 @@ bool mine_new_block( Blockchain *bc, consensus_part cp)
 	l.unlock();
 	bc->can_write.notify_one();
 
-    // //sending
-    // string s = create__verified_1_info(&nb);
-    // // test point
-    // // printf("====%s=====\n", s.c_str()); 
-    // ser->write_to_all_peers(s);
-
-    // if( PRINT_SENDING_MESSAGES ){
-    //     printf ("\033[34;1m SENDING block %lu to the peer, PHASE VALIDATE!\033[0m\n", new_block);
-    //     fflush(stdout);
-    // }
 
     return true;
 
@@ -230,10 +224,7 @@ bool mine_new_block( Blockchain *bc, consensus_part cp)
 bool mine_Consensus_blocks(Blockchain *bc, Consensus_Group *cg)
 {
 
-//    std::unique_lock<std::mutex> l(bc->lock);
-//    bc->can_write.wait( l, [bc](){return !bc->locker_write;});
-//    bc->locker_write = true;
-
+    //Phase request
     for (int i = 0; i < cg->miner_list.size(); i++){
 
         int order_in_round = 1;
@@ -249,13 +240,13 @@ bool mine_Consensus_blocks(Blockchain *bc, Consensus_Group *cg)
                 consensus_part_tmp.round = cg->round;
                 consensus_part_tmp.order_in_round = order_in_round;
                 //先设定一个区块是500笔交易，后续调整
-                consensus_part_tmp.tx_list = pair<int, int>(tx_list, tx_list + 500);
+                consensus_part_tmp.tx_list = pair<int, int>(tx_list, tx_list + TX_NUMBERS_IN_A_BLOCK);
                 consensus_part_tmp.verify_1_numbers = cg->miner_list[i].share_of_block;
                 consensus_part_tmp.verify_2_numbers = cg->miner_list[i].share_of_block;
 
                 mine_new_block(bc, consensus_part_tmp);
                 order_in_round++;
-                tx_list += 500;
+                tx_list += TX_NUMBERS_IN_A_BLOCK;
             }
         }
         else{
@@ -263,9 +254,9 @@ bool mine_Consensus_blocks(Blockchain *bc, Consensus_Group *cg)
 
                 consensus_part_tmp.round = cg->round;
                 consensus_part_tmp.order_in_round = order_in_round;
-                consensus_part_tmp.tx_list = pair<int, int>(tx_list, tx_list + 500);
+                consensus_part_tmp.tx_list = pair<int, int>(tx_list, tx_list + TX_NUMBERS_IN_A_BLOCK);
                 order_in_round++;
-                tx_list += 500;
+                tx_list += TX_NUMBERS_IN_A_BLOCK;
 
                 //有没有批量的网络传送方式
                 string s = create__consensus_block(consensus_part_tmp.round, consensus_part_tmp.order_in_round, consensus_part_tmp.tx_list.first, consensus_part_tmp.tx_list.second);
@@ -281,10 +272,6 @@ bool mine_Consensus_blocks(Blockchain *bc, Consensus_Group *cg)
         }
     }
 
-
-//    bc->locker_write = false;
-//    l.unlock();
-//    bc->can_write.notify_one();
     if(PRINT_CONSENSUS_MESSAGE){
         printf ("\033[34;1m Request phase of round %d has been finished.\033[0m\n", cg->round);
         fflush(stdout);
@@ -315,57 +302,71 @@ uint32_t get_mine_time_in_milliseconds( )
 void miner( Blockchain *bc, Consensus_Group *cg)
 {
     //mining
-    while(true){
+    try{
+
+        while(true){
         
-        bool MINER_CERTIFICATE = false;
-        boost::this_thread::sleep(boost::posix_time::milliseconds(get_mine_time_in_milliseconds() ));
-        if(PRINT_MINING_MESSAGES){
-            printf("\033[33;1m[ ] mining succeed! \n\033[0m");
-        }
-        MINER_CERTIFICATE = true;
-
-        if(cg->is_consensus_started()){
-            if(PRINT_CONSENSUS_MESSAGE){
-
-                printf("\033[33;1m[ ] Consensus round %d has been started! \n\033[0m", cg->round);
-
+            bool MINER_CERTIFICATE = false;
+            boost::this_thread::sleep(boost::posix_time::milliseconds(get_mine_time_in_milliseconds() ));
+            if(PRINT_MINING_MESSAGES){
+                printf("\033[33;1m[ ] mining succeed! \n\033[0m");
             }
-            //先debug广播线，再优化挖矿线程，先进行一轮共识
-            return;
-        }
+            MINER_CERTIFICATE = true;
 
-        std::unique_lock<std::mutex> l(cg->lock);
-        cg->can_write.wait( l, [cg](){return !cg->locker_write;});
-        cg->locker_write = true;
+            if(cg->is_consensus_started()){
+                if(PRINT_CONSENSUS_MESSAGE){
 
-        cg->join_Consensus_group(ser->get_ip(), ser->get_port(), MINER_CERTIFICATE);
+                    printf("\033[33;1m[ ] Consensus round %d has been started! \n\033[0m", cg->round);
 
-        if(cg->get_concurrency_block_numbers() >= CONCURRENCY_BLOCKS){
+                }
+                //这种终止方式感觉很有问题，需要改进
+                return;
+            }
+
+            boost::this_thread::interruption_point();
+
+            std::unique_lock<std::mutex> l(cg->lock);
+            cg->can_write.wait( l, [cg](){return !cg->locker_write;});
+            cg->locker_write = true;
+
+            cg->join_Consensus_group(ser->get_ip(), ser->get_port(), MINER_CERTIFICATE);
+
+            if(cg->get_concurrency_block_numbers() >= CONCURRENCY_BLOCKS){
             
-            cg->start_consensus_of_blocks();
-            pair<string, uint32_t> leader_info = cg->choose_leader();
-            string leader_ip = leader_info.first;
-            uint32_t leader_port = leader_info.second;
-            if(PRINT_CONSENSUS_MESSAGE){
+                cg->start_consensus_of_blocks();
+                pair<string, uint32_t> leader_info = cg->choose_leader();
+                string leader_ip = leader_info.first;
+                uint32_t leader_port = leader_info.second;
+                if(PRINT_CONSENSUS_MESSAGE){
                     printf("\033[33;1m[ ] The leader of consensus round %d is %s:%d. \n\033[0m\n", cg->round, leader_ip.c_str(), leader_port);
                 }
 
-            if (leader_port == my_port && leader_ip == my_ip){
-                //生成偏序并发块并进行传播，原型中先使用交易相同的交易池
-                mine_Consensus_blocks(bc, cg);
-
-            }
+                if (leader_port == my_port && leader_ip == my_ip){
+                    //生成偏序并发块并进行传播，原型中先使用交易相同的交易池
+                    mine_Consensus_blocks(bc, cg);
+                }
  
+            }
+            cg->locker_write = false;
+            l.unlock();
+            cg->can_write.notify_one();
+
+            string random = to_string(rng());
+            string s = create__mining_succeed(MINER_CERTIFICATE, random);
+            ser->write_to_all_peers(s);
+
+            //这个地方挂起miner线程
+            
+
         }
-        cg->locker_write = false;
-        l.unlock();
-        cg->can_write.notify_one();
 
-        string random = to_string(rng());
-        string s = create__mining_succeed(MINER_CERTIFICATE, random);
-        ser->write_to_all_peers(s);
+    }catch(boost::thread_interrupted&){
 
+        cout << "[] Miner Interrupted!" << endl;
     }
+
+
+    
     //模拟挖矿证书
     
 	// if (! CAN_INTERRUPT){

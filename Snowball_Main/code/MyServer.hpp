@@ -29,7 +29,7 @@ extern unsigned long time_of_start;
 
 
 
-#define max_lengths (200*1024*1024) // max length of receiving buffer
+#define max_lengths (32*1024*1024) // max length of receiving buffer
 
 
 //server的客户端部分，主要对于其他节点进行连接尝试

@@ -122,6 +122,7 @@ public:
     //consensus block part
     bool add_waiting_for_phase_1_blocks( BlockHash hash, network_block nb);
 	void set_block_validated_in_phase_validate(uint32_t chain_id, BlockHash hash);
+	vector<pair<BlockHash, network_block>> get_waiting_for_validate_phase_blocks(unsigned long time_of_now);
 
 
 	bool locker_write = false;

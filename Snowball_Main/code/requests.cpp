@@ -336,7 +336,7 @@ bool parse__mining_succeed (vector<std::string> sp, map<string,int> &passed, str
 {
     if ( sp.size() < 5 ) return false;
     //需要修改
-    if ( key_present( sp[0]+sp[1]+sp[2]+sp[3]+sp[4], passed ) ) return false;
+    if ( key_present( sp[0]+sp[1]+sp[2]+sp[3], passed ) ) return false;
 
     bool pr = true;
     sender_ip = sp[1];
@@ -404,7 +404,7 @@ bool parse__verified_1_info (vector<std::string> sp, map<string,int> &passed, st
 {
     if( sp.size() < 16 ) return false;
     //需要修改
-    if(key_present(sp[0]+sp[1]+sp[2]+sp[3]+sp[4]+sp[5]+sp[15], passed)) return false;
+    if(key_present(sp[0]+sp[1]+sp[2]+sp[3]+sp[4]+sp[5], passed)) return false;
 
     bool pr = true;
     sender_ip = sp[1];

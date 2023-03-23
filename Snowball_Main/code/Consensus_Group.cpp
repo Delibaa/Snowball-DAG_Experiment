@@ -10,6 +10,7 @@
 extern tcp_server *ser;
 extern boost::thread *mythread;
 extern Blockchain *bc;
+extern unsigned long time_of_start;
 
 
 Consensus_Group::Consensus_Group()
@@ -139,14 +140,16 @@ void Consensus_Group::print_consensus_info(){
 
     string tx = create_one_transaction();
     uint32_t tx_size = tx.size();
-    unsigned long bytes_local_total_verify = bc->total_verify_local_block*500*tx_size;
+    unsigned long txs_local_total_verify = bc->total_verify_local_block*TX_NUMBERS_IN_A_BLOCK;
+    unsigned long bytes_local_total_verify = bc->total_verify_local_block*TX_NUMBERS_IN_A_BLOCK*tx_size;
     unsigned long time_of_finish = std::chrono::system_clock::now().time_since_epoch() /  std::chrono::milliseconds(1);
     float secs = (time_of_finish - time_of_start)/ 1000.0;
 
-    printf("\n=============== [CONSENSUS GROUP INFO: ]   Round:  %d     Block Members:  %d     Consensus started:  %d\n", round, concurrency_block_numbers, state);
-    printf("\n=============== [LOCAL WAITING QUEUE: ]   Waiting to Verify:  %lu\n",bc->waiting_for_phase_1_block.size());
-    printf("\n=============== [LOCAL CONSENSUS THROUGHPUT: ]   txs MB/s:  %.2f  txs GB/h:  %.1f\n", bytes_local_total_verify/(1024.0*1024)/secs,bytes_local_total_verify/(1024.0*1024)/secs * 3600/1000 );
-    printf("\n=============== [PAST CONSENSUS TIME: ]\n");
+    printf("\n=============== [CONSENSUS GROUP INFO: ]   Round:  %d     Block Members:  %d     Consensus state:  %s\n", round, concurrency_block_numbers, state?"running":"rest");
+    printf("\n=============== [PHASE VALIDATE WAITING QUEUE: ]   Waiting to Verify:  %ld\n",bc->waiting_for_phase_1_block.size());
+    printf("\n=============== [CONSENSUS GROUP THROUGHPUT: ]   txs MB/s:  %.2f  txs GB/h:  %.1f\n", bytes_local_total_verify/(1024.0*1024)/secs,bytes_local_total_verify/(1024.0*1024)/secs * 3600/1000 );
+    printf("\n=============== [CONSENSUS GROUP THROUGHPUT: ]   txs MB/s:  ");
+    printf("\n=============== [CONSENSUS GROUP TXS       : ]    Verified:  %8ld     Rate: %.0f  txs/s \n", txs_local_total_verify, txs_local_total_verify/secs);
     if(!consensus_time.empty()){
         for(int i =1; i<= consensus_time.size();i++){
             printf("\n===============The round %d finished in %.2f\n",consensus_time.find(i)->first, consensus_time.find(i)->second);
