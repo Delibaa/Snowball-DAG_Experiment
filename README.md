@@ -1,6 +1,6 @@
 # Snowball - Blockchain scaling
 
-The repository contains C++ implementation based on OHIE. 
+The repository contains C++ implementation of Snowball based on OHIE. 
 
 ## Dependencies
 
