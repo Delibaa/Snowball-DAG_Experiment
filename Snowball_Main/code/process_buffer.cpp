@@ -7,6 +7,7 @@
 extern mt19937 rng;
 extern boost::thread *mythread;
 extern unsigned long time_of_start;
+extern unsigned long time_of_consensus_group_start;
 extern string my_ip;
 extern uint32_t my_port;
 
@@ -548,7 +549,7 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
 
           string sender_ip;
           uint32_t sender_port;
-          //需要修改的不要传指针
+          //需要修改的不要传指针,不然容易出问题
           consensus_part cp;
 
           if( !parse__consensus_block(sp, passed, sender_ip, sender_port, cp))

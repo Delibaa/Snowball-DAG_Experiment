@@ -11,6 +11,7 @@ extern tcp_server *ser;
 extern boost::thread *mythread;
 extern Blockchain *bc;
 extern unsigned long time_of_start;
+extern unsigned long time_of_consensus_group_start;
 
 
 Consensus_Group::Consensus_Group()
@@ -97,6 +98,7 @@ void Consensus_Group::start_consensus_of_blocks()
 {
 
     state = true;
+    time_of_consensus_group_start = time_of_start = std::chrono::system_clock::now().time_since_epoch() /  std::chrono::milliseconds(1);
     if(PRINT_CONSENSUS_MESSAGE){
         printf("\033[33;1m[ ] Consensus round %d will start. \n\033[0m ",round);
     }
@@ -148,7 +150,7 @@ void Consensus_Group::print_consensus_info(){
     printf("\n=============== [CONSENSUS GROUP INFO: ]   Round:  %d     Block Members:  %d     Consensus state:  %s\n", round, concurrency_block_numbers, state?"running":"rest");
     printf("\n=============== [PHASE VALIDATE WAITING QUEUE: ]   Waiting to Verify:  %ld\n",bc->waiting_for_phase_1_block.size());
     printf("\n=============== [CONSENSUS GROUP THROUGHPUT: ]   txs MB/s:  %.2f  txs GB/h:  %.1f\n", bytes_local_total_verify/(1024.0*1024)/secs,bytes_local_total_verify/(1024.0*1024)/secs * 3600/1000 );
-    printf("\n=============== [CONSENSUS GROUP THROUGHPUT: ]   txs MB/s:  ");
+    // printf("\n=============== [CONSENSUS GROUP THROUGHPUT: ]   txs MB/s:  ");
     printf("\n=============== [CONSENSUS GROUP TXS       : ]    Verified:  %8ld     Rate: %.0f  txs/s \n", txs_local_total_verify, txs_local_total_verify/secs);
     if(!consensus_time.empty()){
         for(int i =1; i<= consensus_time.size();i++){
