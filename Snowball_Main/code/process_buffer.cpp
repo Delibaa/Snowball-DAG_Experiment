@@ -11,6 +11,10 @@ extern unsigned long time_of_consensus_group_start;
 extern string my_ip;
 extern uint32_t my_port;
 
+extern std::condition_variable go_on_mining;
+extern std::mutex mining_lock;
+extern bool mining;
+
 
 
 void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group *cg )
@@ -41,14 +45,13 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
     size_t pos = m.find("#");
     while( pos != string::npos ){
       positions.push_back( pos );
-      pos = m.find( "#", pos + 1);//应该是套接字中还有其他的字符流，所以用这个标记隔开
+      pos = m.find( "#", pos + 1);
     }
     positions.push_back( m.size() + 1 );
 
 
 
     int p;
-    //是捏，需要解析很多消息
     for( p=0; p < positions.size() -1 ; p++){
 
       string w = m.substr(positions[p],positions[p+1]-positions[p]);
@@ -157,7 +160,6 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
           }
 
 
-          //注意这里的设置是0
           if ( CAN_INTERRUPT ){
               // If the new block is extension on the block it is mining then interrupt mining
               // /block *t = bc->find_deepest_child_by_chain_id( nb.chain_id );
@@ -307,7 +309,7 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
           uint32_t sender_port;
           uint32_t chain_id;
           BlockHash hash;
-          string txs = "fake ones";
+          string txs ;
           network_block nb;
           unsigned long sent_time;
 
@@ -347,36 +349,35 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
                   all_good = true;
               }
 
-//              int prevpos = 0;
-//              int pos = 0;
-//              int tot_transactions = 0;
-//              bool all_good = true;
-//              while ( all_good &&  ((pos  = txs.find("\n",pos+1)) >= 0) ){
-//
-//                  string l = txs.substr(prevpos, pos-prevpos);
-//                  if( fake_transactions ||  verify_transaction( l ) ){
-//                      tot_transactions ++;
-//                  }
-//                  else
-//                      all_good = false;
-//
-//                  prevpos = pos+1;
-//              }
-//
-//              if( tot_transactions != b->nb->no_txs ){
-//                  if ( tot_transactions * 1.08 >= b->nb->no_txs )
-//                  {
-//                      if ( PRINT_TRANSMISSION_ERRORS ){
-//                          cout << "The number of TXS differ from the one provided earlier: "<<tot_transactions<<" "<<b->nb->no_txs<<endl;
-//                          cout << sender_port <<" " << chain_id << " "<<hash << endl;
-//                          cout << txs << ":"<<endl;
-//
-//                      }
-//                  }
-//                  if (tot_transactions > 0 && p+2 == positions.size() )
-//                      break;
-//                  continue;
-//              }
+             int prevpos = 0;
+             int pos = 0;
+             int tot_transactions = 0;
+             while ( all_good &&  ((pos  = txs.find("\n",pos+1)) >= 0) ){
+
+                 string l = txs.substr(prevpos, pos-prevpos);
+                 if( fake_transactions ||  verify_transaction( l ) ){
+                     tot_transactions ++;
+                 }
+                 else
+                     all_good = false;
+
+                 prevpos = pos+1;
+             }
+
+             if( tot_transactions != b->nb->no_txs ){
+                 if ( tot_transactions * 1.08 >= b->nb->no_txs )
+                 {
+                     if ( PRINT_TRANSMISSION_ERRORS ){
+                         cout << "The number of TXS differ from the one provided earlier: "<<tot_transactions<<" "<<b->nb->no_txs<<endl;
+                         cout << sender_port <<" " << chain_id << " "<<hash << endl;
+                         cout << txs << ":"<<endl;
+
+                     }
+                 }
+                 if (tot_transactions > 0 && p+2 == positions.size() )
+                     break;
+                 continue;
+             }
 
               if( all_good){
 
@@ -434,21 +435,22 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
                       fflush(stdout);
                   }
 
-//                  // Store into the file
-//                  if ( WRITE_BLOCKS_TO_HDD ){
-//                      string filename = ser->get_server_folder()+"/"+blockhash_to_string( hash );
-//                      ofstream file;
-//                      try{ file.open(filename); }
-//                      catch(const std::string& ex){  continue; }
-//                      file << txs;
-//                      file.close();
-//                  }
+                 // Store into the file
+                 if ( WRITE_BLOCKS_TO_HDD ){
+                     string filename = ser->get_server_folder()+"/"+blockhash_to_string( hash );
+                     ofstream file;
+                     try{ file.open(filename); }
+                     catch(const std::string& ex){  continue; }
+                     file << txs;
+                     file.close();
+                 }
 
                   // Remove from hash table
                   unsigned long time_of_now = std::chrono::system_clock::now().time_since_epoch() /  std::chrono::milliseconds(1);
                   string required_time_to_send=to_string( (time_of_now > sent_time) ? (time_of_now - sent_time) : 0    );
                   bc->set_block_full( chain_id, hash, sender_ip+":"+to_string(sender_port)+" "+required_time_to_send );
                   ser->additional_verified_transaction(n->no_txs);
+                  bc->add_total_verify_blocks(b->nb->consensusPart.round);
 
 
 
@@ -470,31 +472,21 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
           string sender_ip;
           uint32_t sender_port;
           bool certificate;
+          int round;
 
-          if( ! parse__mining_succeed(sp, passed, sender_ip, sender_port, certificate))
+          if( ! parse__mining_succeed(sp, passed, sender_ip, sender_port, certificate, round))
           {
               if ( p+2 == positions.size()) break;
               continue;
           }
 
-        //   if ( CAN_INTERRUPT && certificate == true){
-        //       // If the new block is extension on the block it is mining then interrupt mining
-        //       // /block *t = bc->find_deepest_child_by_chain_id( nb.chain_id );
-        //       //if (NULL != t && t->hash == parent )
-        //       mythread->interrupt();
-        //   }
 
           if ( PRINT_RECEIVING_MESSAGES ){
               printf("\033[32;1m%s:%d SENDS message of mining succeed! \n\033[0m", sender_ip.c_str(), sender_port);
               fflush(stdout);
           }
 
-        //   std::unique_lock<std::mutex> l(cg->lock);
-        //   cg->can_write.wait( l, [cg](){return !cg->locker_write;});
-        //   cg->locker_write = true;
-           
-           
-           if(cg->is_consensus_started()){
+           if(round == cg->round && cg->is_consensus_started()){
 
             if(PRINT_CONSENSUS_MESSAGE){
                 printf("\033[33;1m[ ] Consensus round %d has been started! Join from internet error! \n\033[0m", cg->round);
@@ -508,13 +500,23 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
            cg->can_write.wait( l, [cg](){return !cg->locker_write;});
            cg->locker_write = true;
 
-           cg->join_Consensus_group(sender_ip,sender_port,certificate);
+           cg->join_Consensus_group(sender_ip, sender_port, certificate, round);
+
+            cg->locker_write = false;
+            l.unlock();
+            cg->can_write.notify_one();
+
+            if ( PRINT_RECEIVING_MESSAGES ){
+              printf("\033[32;1m%s:%d HAVE mined block successfully and become a member of consensus group\n\033[0m\n", sender_ip.c_str(), sender_port);
+              fflush(stdout);
+          }
            
            if(cg->get_concurrency_block_numbers() >= CONCURRENCY_BLOCKS){
             
                cg->start_consensus_of_blocks();
+               mining = false;
 
-               mythread->interrupt();//是否释放指针，如果没有需要使用智能指针
+               mythread->interrupt();
 
                pair<string, uint32_t> leader_info = cg->choose_leader();
                string leader_ip = leader_info.first;
@@ -525,23 +527,12 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
                 }
 
                 if (leader_port == my_port && leader_ip == my_ip){
-                //生成偏序并发块并进行传播，原型中先使用交易相同的交易池
 
                     mine_Consensus_blocks(bc, cg);
 
                 }
             }
 
-            cg->locker_write = false;
-            l.unlock();
-            cg->can_write.notify_one();
-
-
-
-          if ( PRINT_RECEIVING_MESSAGES ){
-              printf("\033[32;1m%s:%d HAVE mined block successfully and become a member of consensus group\n\033[0m\n", sender_ip.c_str(), sender_port);
-              fflush(stdout);
-          }
 
       }
 
@@ -549,7 +540,6 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
 
           string sender_ip;
           uint32_t sender_port;
-          //需要修改的不要传指针,不然容易出问题
           consensus_part cp;
 
           if( !parse__consensus_block(sp, passed, sender_ip, sender_port, cp))
@@ -557,6 +547,8 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
               if ( p+2 == positions.size() ) break;
               continue;
           }
+
+          if(cp.round == cg->round && !cg->is_consensus_started()) continue;
 
           //detect leader
            if( (sender_ip != "127.0.0.1") ||  (sender_port != 8001) )
@@ -573,17 +565,14 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
               fflush(stdout);
           }
 
-           //自己挖区块,这个地方赋0吧
-           cp.verify_1_numbers = 0;
-           cp.verify_2_numbers = 0;
-        //    for(int i =0; i<cg->miner_list.size();i++){
-        //        if(cg->miner_list[i].ip == my_ip && cg->miner_list[i].port == my_port){
-        //            cp.verify_1_numbers = cg->miner_list[i].share_of_block;
-        //            cp.verify_2_numbers = cg->miner_list[i].share_of_block;
-        //        }
-        //    }
+          string s = create__have_consensus_block(cp.order_in_round, true);
+          ser->write_to_one_peer(sender_ip, sender_port, s);
+          
+          
+          cp.verify_1_numbers = 0;
+          cp.verify_2_numbers = 0;
 
-           bool mined = mine_new_block(bc,cp);
+          bool mined = mine_new_block(bc,cp);
 
            if(!mined){
                if(PRINT_MINING_MESSAGES){
@@ -592,6 +581,29 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
                }
                
            }
+
+
+      }
+
+      else if (sp[0] == "#have_consensus_block"){
+        string sender_ip;
+        uint32_t sender_port;
+        int order_in_round;
+        bool received;
+        
+        if(!parse__have_consensus_block(sp, passed, sender_ip, sender_port, order_in_round, received)){
+            if ( p+2 == positions.size() ) break;
+            continue;
+        }
+
+        if(!received) continue;
+
+        if ( PRINT_RECEIVING_MESSAGES ){
+            printf("\033[32;1m%s:%d HAVING received the consensus block\n\033[0m\n", sender_ip.c_str(), sender_port);
+            fflush(stdout);
+        }
+
+        bc->set_block_request_in_phase_request(order_in_round);
 
 
       }
@@ -618,8 +630,10 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
               fflush(stdout);
             }
 
-            map<int, history_info>::iterator iter;
-            iter = cg->history.find(nb.consensusPart.round);
+            //add verify logic
+
+            map<int, round_info>::iterator iter;
+            iter = cg->history_info.find(nb.consensusPart.round);
 
             for(int i = 0; i < iter->second.miner.size();i++){
                 if(iter->second.miner[i].ip == ser->get_ip() && iter->second.miner[i].port == ser->get_port()){
@@ -627,7 +641,7 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
                     bool added;
                     bool need_parent = bc->add_received_block( nb.chain_id, nb.parent, nb.hash, nb, added );
 
-                    //泛洪传播机制
+                    //gossip for large scale
                     if (added )
                         ser->send_block_to_peers( &nb );
 
@@ -749,7 +763,7 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
             my_votes = cg->get_member_in_Consensus_Group(ser->get_ip(), ser->get_port())->share_of_block;
           }
 
-          //have enough votes in PHASE VALIDATE
+          //A block have enough votes in PHASE VALIDATE
           if( iter!=bc->waiting_for_phase_1_block.end() ){
              iter->second.consensusPart.verify_1_numbers +=my_votes;
              iter->second.consensusPart.verify_1_numbers += votes;
@@ -762,35 +776,65 @@ void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group
 
                   bc->total_ask_for_verify1_blocks_in_one_round++;
                   bc->total_verify_local_block++;
+
                   block *bz = bc->find_block_by_hash_and_chain_id(iter->second.hash, iter->second.chain_id);
                   if(NULL !=bz && NULL != bz->nb){
                       bz->nb->consensusPart.verify_1_numbers = iter->second.consensusPart.verify_1_numbers;
                       bz->is_full_block = true;
+                      bc->add_total_ask_for_verify_blocks(bz->nb->consensusPart.round);
+
+                      unsigned long time_of_now = std::chrono::system_clock::now().time_since_epoch() /  std::chrono::milliseconds(1);
+                      if( time_of_now > bz->nb->time_mined){
+                        bz->nb->time_received = time_of_now;
+                        bc->receving_total ++;
+                        bc->receiving_latency += bz->nb->time_received - bz->nb->time_mined;
+                      }
+                      else bz->nb->time_received = bz->nb->time_mined;
                   }
+
                   bc->waiting_for_phase_1_block.erase(iter);
+
+                  //add data additional
+                  ser->add_bytes_received( 0,  TX_SIZE * bz->nb->no_txs );
+                  ser->additional_verified_transaction(bz->nb->no_txs);
 
                   //round over
                   if(bc->waiting_for_phase_1_block.empty() /*&& bc->total_ask_for_verify1_blocks_in_one_round>=minerInfo->share_of_block*/){
 
                       unsigned long time_of_finish = std::chrono::system_clock::now().time_since_epoch() /  std::chrono::milliseconds(1);
                       float secs = (time_of_finish - time_of_start)/ 1000.0;
+                      float secs_of_conensus_group = (time_of_finish-time_of_consensus_group_start)/1000.0;
 
                       if(PRINT_CONSENSUS_MESSAGE){
-                          printf ("\033[32;1m[]The consensus round %d has been finished, time duration %.2f\n\033[0m\n", cg->round, secs);
+                          printf("\033[32;1m[]The consensus round %d has been finished, time duration %.2fs\n\033[0m\n", cg->round, secs);
+                          printf("\033[32;1m[]The consensus time duration is %.2fs\n\033[0m\n", secs_of_conensus_group);
                           fflush(stdout);
                       }
                       //upadating
                       cg->add_in_history(cg->round, cg->miner_list, secs);
 
-                      cg->concurrency_block_numbers = 0;
-                      cg->miner_list.clear();
-                      cg->round++;
-                      cg->state = false;
-                      bc->total_ask_for_verify1_blocks_in_one_round = 0;
-                      
-                    //   //这个地方肯定会有问题，感觉上会造成严重的内存浪费，待优化
-                    //   boost::thread t(miner, bc, cg);
-                    //   mythread = &t;
+                      //round update
+                      int rf = cg->round+1;
+                      if(cg->future_info.find(rf)!=cg->future_info.end()){
+                        cg->round = rf;
+                        cg->miner_list.clear();
+                        cg->concurrency_block_numbers = 0;
+                        cg->state = false;
+                        for(int i = 0; i < cg->future_info.find(rf)->second.miner.size(); i++){
+                            cg->miner_list.push_back(cg->future_info.find(rf)->second.miner[i]);
+                            cg->concurrency_block_numbers+=cg->future_info.find(rf)->second.miner[i].share_of_block;
+                        }
+                      }
+                      else{
+                        cg->concurrency_block_numbers = 0;
+                        cg->miner_list.clear();
+                        cg->round++;
+                        cg->state = false;
+                        bc->total_ask_for_verify1_blocks_in_one_round = 0;
+                      }
+                      //awake miner
+                      mining = true;
+                      go_on_mining.notify_one();
 
                   }
               }

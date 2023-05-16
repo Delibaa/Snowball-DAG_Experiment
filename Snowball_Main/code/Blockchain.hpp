@@ -26,7 +26,7 @@ typedef uint64_t BlockHash;
  *
  */
 
-//对于网络取块增加一个网络共识标志，这样网络共识时不再需要传播区块，只需要传播稳定的这个共识部分就可以
+//pre_blocks
 typedef struct consensus_part{
     int round;
     int order_in_round;
@@ -36,6 +36,10 @@ typedef struct consensus_part{
     int verify_2_numbers;
 }consensus_part;
 
+typedef struct sender_info{
+	string ip;
+	uint32_t port;
+}sender_info;
 
 typedef struct networkblocks{
 
@@ -116,13 +120,30 @@ public:
     //consensus block part
 	map<BlockHash,pair<int,unsigned long>> blocks_in_phase_validate;
     map<BlockHash, network_block> waiting_for_phase_1_block;
+	map<int, pair<sender_info,consensus_part>> pre_blocks;
     unsigned long total_ask_for_verify1_blocks_in_one_round;
     unsigned long total_verify_local_block;
+
+	//consensus block count
+	map<int, unsigned long> total_ask_for_verify_blocks;
+	map<int, unsigned long> total_verify_blocks;
+    //private before
+	unsigned long long receiving_latency;
+	unsigned long receving_total;
+	
+	bool add_total_ask_for_verify_blocks(int round);
+	bool add_total_verify_blocks(int round);
 
     //consensus block part
     bool add_waiting_for_phase_1_blocks( BlockHash hash, network_block nb);
 	void set_block_validated_in_phase_validate(uint32_t chain_id, BlockHash hash);
 	vector<pair<BlockHash, network_block>> get_waiting_for_validate_phase_blocks(unsigned long time_of_now);
+	int get_numbers_of_concurrency_blocks_in_a_round(int round);
+	bool add_pre_blocks(string ip, uint32_t port, consensus_part cp_tmp);
+	void set_block_request_in_phase_request(int order_in_round);
+
+
+
 
 
 	bool locker_write = false;
@@ -139,8 +160,6 @@ private:
 	map<BlockHash,pair <int,unsigned long> > received_non_full_blocks;
 	map<BlockHash,unsigned long > waiting_for_full_blocks;
 	unsigned long mined_blocks, processed_full_blocks, total_received_blocks;
-	unsigned long long receiving_latency;
-	unsigned long receving_total;
 	unsigned long long commited_latency[NO_T_DISCARDS];
 	unsigned long commited_total[NO_T_DISCARDS];
 	unsigned long long partially_latency[NO_T_DISCARDS];

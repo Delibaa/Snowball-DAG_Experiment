@@ -35,7 +35,7 @@ bool verify_transaction( string tx );
 
 unsigned long create_static_Transaction_pool( string filename );
 
-int create_block_from_transaction_pool(consensus_part *cp, string &merkle_root_txs);
+bool create_block_from_transaction_pool(consensus_part *cp, string filename);
 
 
 

@@ -210,34 +210,34 @@ string create__full_block( uint32_t chain_id, BlockHash hash, tcp_server *ser, B
     string s = "#full_block,"+my_ip+","+to_string(my_port)+","+to_string(chain_id)+","+to_string(hash)+",";
 
     block * b = bc->find_block_by_hash_and_chain_id( hash, chain_id );
-    s += to_string(b->nb->consensusPart.verify_1_numbers);
+    s += to_string(b->nb->consensusPart.verify_1_numbers)+",";
 
-//    if( WRITE_BLOCKS_TO_HDD ){
-//        string filename = ser->get_server_folder()+"/"+blockhash_to_string( hash );
-//        ifstream file;
-//        try{ file.open(filename); }
-//        catch(const std::string& ex){  return ""; }
-//
-//        stringstream buffer;
-//        buffer << file.rdbuf();
-//        s += buffer.str();
-//
-//        if( buffer.str().size() < 10){
-//          cout<<"Providing:"<<s<<":"<<endl;
-//          cout <<"BAD buffer"<< endl;
-//          fflush(stdout);
-//          exit(1);
-//        }
-//    }
-//    else{
-//        string tx;
-//        if ( NULL != b && b->nb->no_txs > 0 ){
-//            for( int j=0; j< b->nb->no_txs; j++){
-//              tx = create_one_transaction();
-//              s += tx + "\n";
-//            }
-//        }
-//    }
+   if( WRITE_BLOCKS_TO_HDD ){
+       string filename = ser->get_server_folder()+"/"+blockhash_to_string( hash );
+       ifstream file;
+       try{ file.open(filename); }
+       catch(const std::string& ex){  return ""; }
+
+       stringstream buffer;
+       buffer << file.rdbuf();
+       s += buffer.str();
+
+       if( buffer.str().size() < 10){
+         cout<<"Providing:"<<s<<":"<<endl;
+         cout <<"BAD buffer"<< endl;
+         fflush(stdout);
+         exit(1);
+       }
+   }
+   else{
+       string tx;
+       if ( NULL != b && b->nb->no_txs > 0 ){
+           for( int j=0; j< b->nb->no_txs; j++){
+             tx = create_one_transaction();
+             s += tx + "\n";
+           }
+       }
+   }
 
     // Add everything removed from process_block 
     network_block *nb = b->nb;
@@ -275,14 +275,15 @@ bool parse__full_block( vector<std::string> sp, map<string,int> &passed, string 
     chain_id = safe_stoi(sp[3], pr);
     hash = safe_stoull( sp[4], pr);
     nb.consensusPart.verify_1_numbers = safe_stoi( sp[5], pr);
+    txs = sp[6];
 
-    nb.trailing             = safe_stoull( sp[6], pr );
-    nb.trailing_id          = safe_stoi( sp[7], pr );
-    nb.merkle_root_chains   = sp[8];
-    nb.merkle_root_txs      = sp[9];
-    for(int j=0; j<MPL; j++)  nb.proof_new_chain.push_back(sp[10+j]);
-    nb.time_mined   = safe_stoull( sp[10+1*MPL], pr );
-    sent_time   = safe_stoull( sp[10+1*MPL+1], pr );
+    nb.trailing             = safe_stoull( sp[7], pr );
+    nb.trailing_id          = safe_stoi( sp[8], pr );
+    nb.merkle_root_chains   = sp[9];
+    nb.merkle_root_txs      = sp[10];
+    for(int j=0; j<MPL; j++)  nb.proof_new_chain.push_back(sp[11+j]);
+    nb.time_mined   = safe_stoull( sp[11+1*MPL], pr );
+    sent_time   = safe_stoull( sp[11+1*MPL+1], pr );
 
 
     if(  PRINT_TRANSMISSION_ERRORS  &&  ! (pr && sender_ip.size()> 0 && chain_id < CHAINS  ) ){
@@ -326,22 +327,23 @@ bool parse__ping( vector<std::string> sp, map<string,int> &passed, string &sende
 }
 
 
-string create__mining_succeed (bool Certificate, string random)
+string create__mining_succeed (bool Certificate, string random, int round)
 {
-    string s = "#mining_succeed,"+my_ip+","+to_string(my_port)+","+ to_string(Certificate)+","+random;
+    string s = "#mining_succeed,"+my_ip+","+to_string(my_port)+","+ to_string(Certificate)+","+random+","+to_string(round);
     return s;
 }
 
-bool parse__mining_succeed (vector<std::string> sp, map<string,int> &passed, string &sender_ip, uint32_t &sender_port, bool &Certificate)
+bool parse__mining_succeed (vector<std::string> sp, map<string,int> &passed, string &sender_ip, uint32_t &sender_port, bool &Certificate, int &round)
 {
-    if ( sp.size() < 5 ) return false;
+    if ( sp.size() < 6 ) return false;
     //需要修改
-    if ( key_present( sp[0]+sp[1]+sp[2]+sp[3], passed ) ) return false;
+    if ( key_present( sp[0]+sp[1]+sp[2]+sp[3]+sp[4], passed ) ) return false;
 
     bool pr = true;
     sender_ip = sp[1];
     sender_port = safe_stoi(sp[2], pr);
     Certificate = safe_stoi(sp[3], pr);
+    round = safe_stoi(sp[5], pr);
 
     if(  PRINT_TRANSMISSION_ERRORS  &&  ! (pr && sender_ip.size()> 0 ) ){
         cout << "Could not get proper values of ming_succeed_certificate"<<endl;
@@ -381,6 +383,37 @@ bool parse__consensus_block (vector<std::string> sp, map<string,int> &passed, st
     }
 
     return true;
+
+}
+
+string create__have_consensus_block(int order_in_round, bool received){
+
+  string s = "#have_consensus_block,"+my_ip+","+to_string(my_port)+","+ to_string(order_in_round)+","+to_string(received);
+
+  return s;
+
+}
+
+bool parse__have_consensus_block (vector<std::string> sp, map<string,int> &passed, string &sender_ip, uint32_t &sender_port, int &pre_blocks, bool &received){
+
+  if( sp.size() < 5 ) return false;
+
+  if(key_present(sp[0]+sp[1]+sp[2]+sp[3]+sp[4], passed)) return false;
+
+  bool pr = true;
+  sender_ip = sp[1];
+  sender_port = safe_stoi(sp[2], pr);
+  pre_blocks = safe_stoi(sp[3], pr);
+  received = safe_stoi(sp[4], pr);
+
+  if(  PRINT_TRANSMISSION_ERRORS  &&  ! (pr && sender_ip.size()> 0 ) ){
+        cout << "Could not get proper values of consensus block info"<<endl;
+        cout << pr << " " << sender_ip << " "<< endl;
+        return false;
+    }
+
+  return true;
+
 
 }
 

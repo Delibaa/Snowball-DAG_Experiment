@@ -65,7 +65,7 @@ class Block:
         self.time = 1
         self.txs = []
         # test
-        self.capacity = 130
+        self.capacity = 87
         self.miner = ""
 
     # strategy one: packaging blocks according to the tx fees
@@ -79,19 +79,19 @@ class Block:
     def choose_txs_randomly(self, transaction_pool):
         if len(self.txs) < self.capacity:
             for i in range(0, self.capacity):
-                k = random.randint(0, transaction_pool.capacity-1)
+                k = random.randint(0, transaction_pool.capacity - 1)
                 self.txs.append(transaction_pool.txs[k])
 
     # strategy three: package blocks by mapping the reversed six characters
-    # need to optimize, a lot of time with two totally recycling
     def choose_txs_with_mapping(self, transaction_pool, miner_address):
-        if len(self.txs) < self.capacity:
-            address_hex = miner_address[-1:]
-            capacity_bar = 0
-            for tx in transaction_pool.txs:
-                if (tx.hash[-1:] == address_hex) and (capacity_bar <= self.capacity):
-                    capacity_bar = capacity_bar + 1
-                    self.txs.append(tx)
+        address_hex = miner_address[-1:]
+        capacity_bar = 0
+        for tx in transaction_pool.txs:
+            if (tx.hash[-1:] == address_hex) and (capacity_bar <= self.capacity):
+                capacity_bar += 1
+                self.txs.append(tx)
+            if capacity_bar > self.capacity:
+                break
 
 
 # simulation of getting miners' address
@@ -110,7 +110,7 @@ def network_simulation(block_number):
     # block interval of different concurrency round
     timestamp_interval = []
     # concurrency blocks' sum time interval
-    sum_time = 30
+    sum_time = 10
     # package blocks simulation: random to solve the puzzle
     for i in range(0, block_number):
         timestamp = random.randint(0, sum_time)
@@ -140,10 +140,9 @@ def package_simulation_strategy1(transaction_pool, fork_coefficient):
             for j in range(k, i):
                 if block.time - blocks_with_strategy1[j].time >= 2:
                     transaction_pool.delete_transactions(blocks_with_strategy1[j].txs)
-                    block.choose_txs_with_transaction_fees(transaction_pool)
                     k = j + 1
-                else:
-                    block.choose_txs_with_transaction_fees(transaction_pool)
+            block.choose_txs_with_transaction_fees(transaction_pool)
+
         blocks_with_strategy1.append(block)
     return blocks_with_strategy1
 
@@ -170,10 +169,9 @@ def package_simulation_strategy2(transaction_pool, fork_coefficient):
             for j in range(k, i):
                 if block.time - blocks_with_strategy2[j].time >= 2:
                     transaction_pool.delete_transactions(blocks_with_strategy2[j].txs)
-                    block.choose_txs_randomly(transaction_pool)
                     k = j + 1
-                else:
-                    block.choose_txs_randomly(transaction_pool)
+            block.choose_txs_randomly(transaction_pool)
+
         blocks_with_strategy2.append(block)
     return blocks_with_strategy2
 
@@ -187,12 +185,12 @@ def package_simulation_strategy3(transaction_pool, fork_coefficient):
 
     # strategy3
     blocks_with_strategy3 = []
-    miner_address = get_address(6)
+    miner_address = get_address(8)
     for i in range(0, concurrency_block_number):
         block = Block()
         block.number = i + 1
         block.time = blocks_timestamp_interval[i]
-        block.miner = miner_address[i % 6]
+        block.miner = miner_address[i % 8]
 
         # when the interval of two blocks producing is smaller than the time of transmitting needed
         if i - 1 < 0:
@@ -202,9 +200,8 @@ def package_simulation_strategy3(transaction_pool, fork_coefficient):
             for j in range(k, i):
                 if block.time - blocks_with_strategy3[j].time >= 2:
                     transaction_pool.delete_transactions(blocks_with_strategy3[j].txs)
-                    block.choose_txs_with_mapping(transaction_pool, block.miner)
                     k = j + 1
-                else:
-                    block.choose_txs_with_mapping(transaction_pool, block.miner)
+            block.choose_txs_with_mapping(transaction_pool, block.miner)
+
         blocks_with_strategy3.append(block)
     return blocks_with_strategy3

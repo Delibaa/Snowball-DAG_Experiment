@@ -50,32 +50,30 @@ string create_one_transaction()
 	return tx +":"+sign_tx;
 }
 
+bool create_block_from_transaction_pool(consensus_part *cp, string filename)
+{
+    uint32_t no_txs = cp->tx_list.second - cp->tx_list.first;
 
-// //静态交易池预先生成，可以本机
-// unsigned long create_static_Transaction_pool( string filename )
-// {
-//     //静态交易池
-// //    filename = FOLDER_TRANSACTION_POOL;
-//     unsigned long l = 0;
-//     ofstream file;
-//     try {
-//         file.open(filename);
-//     }
-//     catch(const std::string& ex){
-//         return false;
-//     }
-//     while(l < TRANSACTION_POOL_CAPACITY){
-//         string tx = create_one_transaction();
-//         file << tx <<endl;
-//         l += tx.size();
-//     }
-// }
+	if(WRITE_BLOCKS_TO_HDD){
+		ofstream file;
+		try
+		{
+			file.open(filename);
+		}
+		catch(const std::string& ex)
+		{
+			return false;
+		}
+		for(int i = 0; i < no_txs; i++){
+			string tx = create_one_transaction();
+			file << tx << endl;
+		}
+		file.close();
+	}
 
-// int create_block_from_transaction_pool(consensus_part *cp, string &merkle_root_txs)
-// {
-//     int start = cp->tx_list.first; //前闭后开[1,201)
-//     int finish = cp->tx_list.second;
-// }
+
+	return true;
+}
 
 //需要修改的是这个地方，从交易池选取后生成
 int create_transaction_block( BlockHash hash, string filename )

@@ -52,6 +52,7 @@ extern uint32_t MAX_WAIT_FOR_FULL_BLOCK_MILLSECONDS;
 extern uint32_t MAX_ASK_NON_FULL_IN_ONE_GO;
 extern uint32_t ASK_FOR_VOTE_OF_BLOCKS_IN_PHSAE_VALIDATE_EACH_MILLISECONDS;
 extern uint32_t ASK_FOR_VOTE_OF_BLOCKS_IN_PHSAE_VALIDATE_INDIVIDUAL_EACH_MILLISECONDS;
+extern uint32_t REQUEST_OF_BLOCKS_IN_PHASE_REQUEST_EACH_MILLISECONDS;
 // Sing + verify transactions
 extern uint32_t SIGN_TRANSACTIONS;
 extern uint32_t VERIFY_TRANSACTIONS;
@@ -100,13 +101,12 @@ extern uint32_t UPDATE_COMMITED_TIME_EACH_MILLISECONDS;
 //
 extern bool fake_transactions;
 
-//明白了，这是单链验证的拖延周期，因为多链结构的每条链实例确认和单链一样，也就是六个块之后确认，这个地方是要调整参数的
+//single chains to discard the six blocks of ending
 #define NO_T_DISCARDS 1
 extern uint32_t T_DISCARD[NO_T_DISCARDS];
 
 extern uint32_t CONCURRENCY_BLOCKS;
-
 extern unsigned long TRANSACTION_POOL_CAPACITY;
-
+extern unsigned long TX_SIZE;
 
 #endif

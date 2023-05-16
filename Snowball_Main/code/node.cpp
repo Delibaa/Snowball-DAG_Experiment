@@ -39,6 +39,10 @@ unsigned long time_of_consensus_group_start;
 boost::thread *mythread;
 tcp_server *ser=NULL;
 
+std::condition_variable go_on_mining;
+std::mutex mining_lock;
+bool mining;
+
  
 
 
@@ -230,7 +234,6 @@ int main(int argc, char **argv) {
      */
     boost::thread t1(miner, bc, cg);
     mythread = &t1;
-
 
     /*
      * Start the server

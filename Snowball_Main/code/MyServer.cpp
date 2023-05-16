@@ -123,7 +123,7 @@ void tcp_connection::start()
             // Increase amount of received bytes
           	ser->add_bytes_received( length, 0);
 
-			// Process buffer            
+			     // Process buffer            
             process_buffer( full_buffer, ser, bc, cg);
 
             // cg->locker_write = false;
@@ -180,7 +180,7 @@ tcp_connection::tcp_connection(boost::asio::io_service& io_service)
 
 tcp_server::tcp_server(boost::asio::io_service& io_service, string ip, uint32_t port)
 : acceptor_(io_service, tcp::endpoint(tcp::v4(), port)), my_ip(ip), my_port(port), t(new boost::asio::deadline_timer(io_service)), 
-  last_ask_for_incomplete(0), last_ask_for_vote(0), last_print_blockchain(0), last_update_commited(0), bytes_received(0), bytes_txs_received(0), folder_blockchain(string(FOLDER_BLOCKCHAIN)), folder_transaction_pool(string(FOLDER_TRANSACTION_POOL))
+  last_ask_for_incomplete(0), last_ask_for_vote(0), last_request(0), last_print_blockchain(0), last_update_commited(0), bytes_received(0), bytes_txs_received(0), folder_blockchain(string(FOLDER_BLOCKCHAIN)), folder_transaction_pool(string(FOLDER_TRANSACTION_POOL))
 {
     start_accept();
 
@@ -426,7 +426,7 @@ void tcp_server::run_network()
 
     last_peer_connect = time_of_now;
 
-    //链接个人服务器中的节点路由表，多节点的gossip设计
+    //多节点中gossip路由表修改点
     for( int i=0; i<peers.size(); i++){
         if( !peers[i].connected /* || peers[i].session == NULL */){
 
@@ -485,7 +485,6 @@ void tcp_server::run_network()
     }
   }
 
-
   // Get incomplete chains
   if ( time_of_now - last_ask_for_incomplete > ASK_FOR_INCOMPLETE_EACH_MILLISECONDS){
     
@@ -502,26 +501,50 @@ void tcp_server::run_network()
               write_to_all_peers( s );
         }     
       }
+
       last_ask_for_incomplete = time_of_now;
+
   }
 
+  //leader sending blocks
+  if ( time_of_now - last_request >REQUEST_OF_BLOCKS_IN_PHASE_REQUEST_EACH_MILLISECONDS)
+  {
+    if(!bc->pre_blocks.empty()){
+      for (auto it = bc->pre_blocks.begin() ; it !=bc->pre_blocks.end() ; it++)
+    {
 
+      string s = create__consensus_block(it->second.second.round, it->second.second.order_in_round, it->second.second.tx_list.first, it->second.second.tx_list.second);
+      write_to_one_peer(it->second.first.ip, it->second.first.port, s);
+      if( PRINT_SENDING_MESSAGES ){
+        printf ("\033[34;1m SENDING consensus block to the peer %s:%d, PHASE REQUESTY!\033[0m\n",it->second.first.ip.c_str(),it->second.first.port);
+        fflush(stdout);
+      }
+    }
+
+    last_request = time_of_now;
+    }
+    
+    
+  }
+  
   //Get votes for blocks
   if( time_of_now - last_ask_for_vote > ASK_FOR_VOTE_OF_BLOCKS_IN_PHSAE_VALIDATE_EACH_MILLISECONDS && cg->is_consensus_started() ){
     
-    // map<BlockHash, network_block> blocks_phase_1 = bc->waiting_for_phase_1_block;
     vector <pair <BlockHash, network_block>> blocks = bc->get_waiting_for_validate_phase_blocks(time_of_now);
 
     for (auto it = blocks.begin(); it !=blocks.end(); it++ ){
+      
+      string random = to_string(1);
+      string s = create__verified_1_info(&it->second, random);
+
+      for(auto it = cg->miner_list.begin(); it !=cg->miner_list.end(); it++){
+        write_to_one_peer(it->ip, it->port, s);
+      }
+
       if( PRINT_SENDING_MESSAGES ){
         printf ("\033[34;1m SENDING block %lx to the peer, PHASE VALIDATE!\033[0m\n", it->second.hash);
         fflush(stdout);
       }
-
-
-      string random = to_string(1);
-      string s = create__verified_1_info(&it->second, random);
-      write_to_all_peers(s);
 
 
     }
@@ -602,16 +625,11 @@ void tcp_server::run_network()
         printf ("\033[0m" );
       }
       printf("\n");
-      // int block_mine = 0;
-      // for(int i = 0; i < cg->history.size(); i++){
-      //   for(int j = 0; j < history[i]->second.miner.size(); j++){
-      //     if(history[i]->second.miner[j]->ip == my_ip && history[i]->second.miner[j]->port == my_port) block_mine += history[i]->second.miner[j]->share_of_block;
-      //   }
-      // }
-      // unsigned long mine_block_txs = block_mine*TX_NUMBERS_IN_A_BLOCK;
-      // unsigned long mine_block_bytes = block_mine*TX_NUMBERS_IN_A_BLOCK*tx_size;
+      //no txs, add additional data
+      unsigned long bytes_total = bytes_received + bytes_txs_received;
+      
       printf("\n=============== [NETWORK THROUGHPUT:] MB: %.1f   MB/s: %.2f    GB/h:  %.1f  ::::  txs MB/s:  %.2f  txs GB/h:  %.1f \n",
-             bytes_received/(1024.0*1024), bytes_received/(1024.0*1024)/secs, bytes_received/(1024.0*1024)/secs * 3600/1000,
+             bytes_total/(1024.0*1024), bytes_total/(1024.0*1024)/secs, bytes_total/(1024.0*1024)/secs * 3600/1000,
         bytes_txs_received/(1024.0*1024)/secs, bytes_txs_received/(1024.0*1024)/secs * 3600/1000);
       
       printf("\n=============== [NETWORK TXS       :] Verified :  %8ld     Rate: %.0f txs/s  \n", no_verified_transactions, no_verified_transactions/ secs);

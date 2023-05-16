@@ -36,11 +36,14 @@ bool parse__full_block( vector<std::string> sp, map<string,int> &passed, string 
 string create__ping( string tt, uint32_t dnext, unsigned long tsec, int mode);
 bool parse__ping( vector<std::string> sp, map<string,int> &passed, string &sender_ip, uint32_t &sender_port, string &tt, uint32_t &dnext, unsigned long &tsec , int &mode  );
 
-string create__mining_succeed (bool Certificate, string random);
-bool parse__mining_succeed (vector<std::string> sp, map<string,int> &passed, string &sender_ip, uint32_t &sender_port, bool &Certificate);
+string create__mining_succeed (bool Certificate, string random, int round);
+bool parse__mining_succeed (vector<std::string> sp, map<string,int> &passed, string &sender_ip, uint32_t &sender_port, bool &Certificate, int &round);
 
 string create__consensus_block(int round, int order, int tx_first, int tx_second);
 bool parse__consensus_block (vector<std::string> sp, map<string,int> &passed, string &sender_ip, uint32_t &sender_port, consensus_part &cp);
+
+string create__have_consensus_block(int order_in_round, bool received);
+bool parse__have_consensus_block (vector<std::string> sp, map<string,int> &passed, string &sender_ip, uint32_t &sender_port, int &pre_blocks, bool &received);
 
 string create__verified_1_info(network_block *nb, string random);
 bool parse__verified_1_info (vector<std::string> sp, map<string,int> &passed, string &sender_ip, uint32_t &sender_port, network_block &nb);

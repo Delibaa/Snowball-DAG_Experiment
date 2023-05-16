@@ -457,8 +457,11 @@ Blockchain::Blockchain(BlockHash hashes[MAX_CHAINS])
     total_verify_local_block = 0;
     waiting_for_phase_1_block.clear();
 	blocks_in_phase_validate.clear();
+	pre_blocks.clear();
+	total_ask_for_verify_blocks.clear();
+	total_verify_blocks.clear();
 
-
+    //latency
 	receiving_latency = receving_total = 0;
 	for( int j=0; j< NO_T_DISCARDS; j++){
 		commited_latency[j] = 0;
@@ -646,7 +649,7 @@ void Blockchain::specific_print_blockchain()
 
     tot_no_nodes -= CHAINS;
 
-
+	printf("\n=============== [BLOCK DATA STRUCTURE:]	Type:	Multiple chains\n");
 	printf("\n=============== [BLOCK HEADERS:]   Main tree:  %7d    Side trees: %7d  Total:  %7d\n", tot_no_nodes, tot_no_in_nodes, tot_no_nodes + tot_no_in_nodes );
 	printf("\n=============== [MINING RATE  :]   %4d blocks / %.1f secs = %.2f  bps \n", tot_no_nodes+tot_no_in_nodes , secs, (float)(tot_no_nodes+tot_no_in_nodes)/secs );
 
@@ -654,31 +657,19 @@ void Blockchain::specific_print_blockchain()
 												tot_max_depth, mined_blocks,   
 												100.0*tot_max_depth / (tot_no_nodes+tot_no_in_nodes) );
 
-	printf("\n=============== [LATENCY      :]  Receving(%lu)  : %0.2f secs     Partially ",receving_total, receiving_latency/1000.0/receving_total );
-	for(int j=0; j<NO_T_DISCARDS; j++)
-		printf("(%lu) ", partially_total[j]);
-	printf(": ");
-	for(int j=0; j<NO_T_DISCARDS; j++)
-		printf("%0.1f secs ", partially_latency[j]/1000.0/partially_total[j]);
-	printf("   Committing ");
-	for(int j=0; j<NO_T_DISCARDS; j++)
-		printf("(%lu) ", commited_total[j]);
-	printf(": ");
-	for(int j=0; j<NO_T_DISCARDS; j++)
-		printf("%0.1f secs ", commited_latency[j]/1000.0/commited_total[j]);
+	printf("\n=============== [LATENCY      :]  Receving(%lu)  : %0.2f secs   ",receving_total, receiving_latency/1000.0/receving_total );
+	// for(int j=0; j<NO_T_DISCARDS; j++)
+	// 	printf("(%lu) ", partially_total[j]);
+	// printf(": ");
+	// for(int j=0; j<NO_T_DISCARDS; j++)
+	// 	printf("%0.1f secs ", partially_latency[j]/1000.0/partially_total[j]);
+	// printf("   Committing ");
+	// for(int j=0; j<NO_T_DISCARDS; j++)
+	// 	printf("(%lu) ", commited_total[j]);
+	// printf(": ");
+	// for(int j=0; j<NO_T_DISCARDS; j++)
+	// 	printf("%0.1f secs ", commited_latency[j]/1000.0/commited_total[j]);
 	printf(" \n");
-
-
-
-	printf("\n=============== [FULL BLOCKS  :]  Received:  %7ld / %7ld   Waiting:  %7ld   Processed:  %7ld ( %.0f %% ) \n",
-						total_received_blocks+total_verify_local_block, received_non_full_blocks.size()+waiting_for_phase_1_block.size(),
-						waiting_for_full_blocks.size()+waiting_for_phase_1_block.size(),
-						processed_full_blocks+total_verify_local_block, (total_received_blocks> 0) ? (100.0*(processed_full_blocks+total_verify_local_block)/(total_received_blocks+total_verify_local_block)): 0 );
-
-
-
-
-
     fflush(stdout);
 
 
@@ -916,7 +907,6 @@ void Blockchain::add_mined_block()
 void Blockchain::update_blocks_commited_time()
 {
 
-    //做一个相对时间，单位转换？
 	unsigned long time_of_now = std::chrono::system_clock::now().time_since_epoch() /  std::chrono::milliseconds(1);
 
 
@@ -1045,6 +1035,18 @@ bool Blockchain::add_waiting_for_phase_1_blocks( BlockHash hash, network_block n
 
 }
 
+bool Blockchain::add_pre_blocks(std::string ip, uint32_t port, consensus_part cp_tmp){
+
+	if(pre_blocks.find(cp_tmp.order_in_round) == pre_blocks.end()){
+
+		sender_info info = {ip, port};
+		pre_blocks.insert(make_pair(cp_tmp.order_in_round, make_pair(info, cp_tmp)));
+
+		return true;
+	}
+	return false;
+}
+
 void Blockchain::set_block_validated_in_phase_validate(uint32_t chain_id, BlockHash hash){
 	if(blocks_in_phase_validate.find(hash) != blocks_in_phase_validate.end()){
 		blocks_in_phase_validate.erase(hash);
@@ -1053,10 +1055,73 @@ void Blockchain::set_block_validated_in_phase_validate(uint32_t chain_id, BlockH
 		waiting_for_phase_1_block.erase(hash);
 	}
 
-	block *bz = find_block_by_hash( this->chains[chain_id], hash );
+	block *bz = find_block_by_hash_and_chain_id(chain_id, hash );
 	if (NULL != bz){
 		bz->is_full_block = true;
 	}
 
 
+}
+
+void Blockchain::set_block_request_in_phase_request(int order_in_round){
+
+	if(pre_blocks.find(order_in_round)!= pre_blocks.end()){
+		pre_blocks.erase(order_in_round);
+	}
+
+}
+
+bool Blockchain::add_total_ask_for_verify_blocks(int round){
+
+	if(total_ask_for_verify_blocks.find(round) == total_ask_for_verify_blocks.end()){
+		total_ask_for_verify_blocks.insert(make_pair(round, 1));
+	}
+	else{
+		total_ask_for_verify_blocks.find(round)->second++;
+	}
+	return true;
+}
+
+bool Blockchain::add_total_verify_blocks(int round){
+
+	if(total_verify_blocks.find(round) == total_verify_blocks.end()){
+		total_verify_blocks.insert(make_pair(round, 1));
+	}
+	else{
+		total_verify_blocks.find(round)->second++;
+	}
+	return true;
+}
+
+int Blockchain::get_numbers_of_concurrency_blocks_in_a_round(int round){
+
+	
+	int numbers = total_ask_for_verify_blocks.find(round)->second 
+	               + total_verify_blocks.find(round)->second;
+
+    //it's little slowly
+	// for(int i=0; i<CHAINS; i++){
+
+	// 	block *t = deepest[i];
+	// 	if(NULL == t) continue;
+
+	// 	while(NULL!=t){
+
+	// 		// if(t->nb->consensusPart.round < round) break;
+	// 		if(t->sibling == NULL){
+	// 			if(t->nb->consensusPart.round==round && t->is_full_block) numbers++;
+	// 		}
+
+	// 		while (t->sibling!=NULL)
+	// 		{
+	// 			if(t->nb->consensusPart.round == round && t->is_full_block) numbers++;
+	// 			t=t->sibling;
+	// 		}
+						
+	// 		// add the node numbers of siblings and incomplete chains
+	// 		t = t->parent;
+	// 	}
+	// }
+
+	return numbers;
 }
