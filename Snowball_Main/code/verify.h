@@ -18,17 +18,13 @@
 
 using namespace std;
 
-
-string blockhash_to_string( BlockHash b);
-BlockHash string_to_blockhash( string h );
-uint32_t get_chain_id_from_hash( string h);
-string compute_merkle_tree_root( vector<string> leaves );
-vector <string> compute_merkle_proof( vector<string> leaves, int index );
+string blockhash_to_string(BlockHash b);
+BlockHash string_to_blockhash(string h);
+uint32_t get_chain_id_from_hash(string h);
+string compute_merkle_tree_root(vector<string> leaves);
+vector<string> compute_merkle_proof(vector<string> leaves, int index);
 int merkle_proof_length();
 
-bool verify_merkle_proof( vector <string> proof, BlockHash bh, string root, uint32_t index );
-
-
-
+bool verify_merkle_proof(vector<string> proof, BlockHash bh, string root, uint32_t index);
 
 #endif

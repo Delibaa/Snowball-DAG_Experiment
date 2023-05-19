@@ -27,11 +27,8 @@ extern mt19937 rng;
 
 using namespace std;
 
-
 string create_one_transaction();
-int create_transaction_block( BlockHash hash, string filename, string file_of_transaction_pool );
-bool verify_transaction( string tx );
-
-
+int create_transaction_block(BlockHash hash, string filename, string file_of_transaction_pool);
+bool verify_transaction(string tx);
 
 #endif

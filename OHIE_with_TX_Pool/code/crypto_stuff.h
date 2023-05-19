@@ -1,7 +1,6 @@
 #ifndef CRYPTO_STUFF_H
 #define CRYPTO_STUFF_H
 
-
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -19,16 +18,11 @@
 
 using namespace std;
 
-
 string sha256(const string str);
 
-void prepare_ecc_crypto( string filename_key_pem );
+void prepare_ecc_crypto(string filename_key_pem);
 
-string sign_message( string message );
-bool verify_message( string message, string signature);
-
-
-
-
+string sign_message(string message);
+bool verify_message(string message, string signature);
 
 #endif

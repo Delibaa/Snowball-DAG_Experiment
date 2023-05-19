@@ -4,11 +4,9 @@
 #include <iostream>
 #include <string>
 
-
 // Max number of chains
 // The actual number of chains is specified in CHAINS
-#define MAX_CHAINS (8*1024)
-
+#define MAX_CHAINS (8 * 1024)
 
 // Folder&file names
 #define FOLDER_BLOCKCHAIN "_Blockchains"
@@ -16,16 +14,14 @@
 #define FOLDER_HASHES "_Hashes"
 #define FOLDER_PINGS "_Pings"
 #define FOLDER_BLOCKS "_Blocks"
-#define FILE_CONFIGURATION	"_configuration"
-#define FILE_ECC_KEY	"_ecc_key"
-#define FILE_PEER_IPS	"_peer_ip_allowed"
+#define FILE_CONFIGURATION "_configuration"
+#define FILE_ECC_KEY "_ecc_key"
+#define FILE_PEER_IPS "_peer_ip_allowed"
 #define FOLDER_TRANSACTION_POOL "_Transactions_Pool"
 
 // Dummy strings
 #define DUMMY_SIGNATURE "11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
 #define EMPTY_LEAF "00000000000000000000000000000000"
-
-
 
 /*
  * All of the below values can be set before runtime (no need to compile!!!) in the file "configuration", by
@@ -39,13 +35,13 @@ extern uint32_t COEFF;
 
 // Expected mine time
 extern uint32_t EXPECTED_MINE_TIME_IN_MILLISECONDS;
-//#define EXPECTED_MINE_TIME_IN_MILLISECONDS ( COEFF * 0.25 * 1000)
+// #define EXPECTED_MINE_TIME_IN_MILLISECONDS ( COEFF * 0.25 * 1000)
 
 // Ask for parents of incomplete blocks
 extern uint32_t ASK_FOR_INCOMPLETE_EACH_MILLISECONDS;
-extern uint32_t ASK_FOR_INCOMPLETE_INDIVIDUAL_MILLISECONDS; //2000
+extern uint32_t ASK_FOR_INCOMPLETE_INDIVIDUAL_MILLISECONDS; // 2000
 extern uint32_t NO_ASKS_BEFORE_REMOVING;
-// Ask for full blocks 
+// Ask for full blocks
 extern uint32_t ASK_FOR_FULL_BLOCKS_EACH_MILLISECONDS;
 extern uint32_t ASK_FOR_FULL_BLOCKS_INDIVIDUAL_EACH_MILLISECONDS;
 extern uint32_t MAX_WAIT_FOR_FULL_BLOCK_MILLSECONDS;
@@ -62,7 +58,7 @@ extern uint32_t CONNECT_TO_PEERS_MILLISECONDS;
 extern uint32_t RUN_NETWORK_EACH_MILLISECONDS;
 //
 extern uint32_t MAX_ASK_BLOCKS;
-// HDD 
+// HDD
 extern uint32_t WRITE_BLOCKS_TO_HDD;
 extern uint32_t WRITE_SESSIONS_TO_HDD;
 extern uint32_t WRITE_HASH_TO_HDD;
@@ -93,15 +89,15 @@ extern uint32_t PING_MIN_WAIT;
 extern uint32_t PING_MAX_WAIT;
 extern uint32_t PING_REPEAT;
 //
-extern uint32_t STORE_BLOCKS ;
-extern uint32_t BLOCKS_STORE_FREQUENCY ;
+extern uint32_t STORE_BLOCKS;
+extern uint32_t BLOCKS_STORE_FREQUENCY;
 //
 extern uint32_t NO_DISCARD_LOCAL;
 extern uint32_t UPDATE_COMMITED_TIME_EACH_MILLISECONDS;
 //
 extern bool fake_transactions;
 
-//single chains to discard the six blocks of ending
+// single chains to discard the six blocks of ending
 #define NO_T_DISCARDS 1
 extern uint32_t T_DISCARD[NO_T_DISCARDS];
 

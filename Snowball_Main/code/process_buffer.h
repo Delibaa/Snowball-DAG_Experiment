@@ -6,7 +6,6 @@
 #include <vector>
 #include <map>
 
-
 #include "MyServer.hpp"
 #include "Blockchain.hpp"
 #include "requests.h"
@@ -17,8 +16,6 @@
 
 using namespace std;
 
-void process_buffer( string &m, tcp_server *ser, Blockchain *bc, Consensus_Group *cg);
-
-
+void process_buffer(string &m, tcp_server *ser, Blockchain *bc, Consensus_Group *cg);
 
 #endif

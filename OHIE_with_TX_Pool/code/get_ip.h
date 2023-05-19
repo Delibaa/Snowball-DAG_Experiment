@@ -15,5 +15,4 @@ using namespace std;
 
 string get_my_local_ip();
 
-
 #endif

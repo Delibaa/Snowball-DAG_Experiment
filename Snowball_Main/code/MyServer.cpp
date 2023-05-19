@@ -20,7 +20,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-
 #include <ctime>
 #include <iostream>
 #include <fstream>
@@ -45,13 +44,8 @@ SOFTWARE.
 #include "process_buffer.h"
 #include "Consensus_Group.h"
 
-
-
 using boost::asio::ip::tcp;
 using namespace std;
-
-
-
 
 extern tcp_server *ser;
 extern Blockchain *bc;
@@ -62,114 +56,97 @@ boost::mutex mtx;
 
 string folder_sessions = string(FOLDER_SESSIONS);
 
-
 class io_service;
 
 /*
  * tcp_connection
  */
 
-
 typedef boost::shared_ptr<tcp_connection> pointer;
 
-
-pointer tcp_connection::create(boost::asio::io_service& io_service)
+pointer tcp_connection::create(boost::asio::io_service &io_service)
 {
-    return pointer(new tcp_connection(io_service));
+  return pointer(new tcp_connection(io_service));
 }
 
-tcp::socket& tcp_connection::socket()
+tcp::socket &tcp_connection::socket()
 {
-    return socket_;
+  return socket_;
 }
 
-
-
-//process buffer
+// process buffer
 void tcp_connection::start()
 {
-  
 
-  try{
+  try
+  {
     auto self(shared_from_this());
     socket_.async_read_some(boost::asio::buffer(data_buffer),
-        [this, self ](boost::system::error_code ec, std::size_t length)
-        {
-          if (!ec)
-          {
+                            [this, self](boost::system::error_code ec, std::size_t length)
+                            {
+                              if (!ec)
+                              {
 
-            // std::unique_lock<std::mutex> l(bc->lock);
-            // bc->can_write.wait( l, [](){return !bc->locker_write;});
-            // bc->locker_write = true;
+                                // std::unique_lock<std::mutex> l(bc->lock);
+                                // bc->can_write.wait( l, [](){return !bc->locker_write;});
+                                // bc->locker_write = true;
 
-            // std::unique_lock<std::mutex> l1(cg->lock);
-            // cg->can_write.wait( l1, [](){return !cg->locker_write;});
-            // cg->locker_write = true;
+                                // std::unique_lock<std::mutex> l1(cg->lock);
+                                // cg->can_write.wait( l1, [](){return !cg->locker_write;});
+                                // cg->locker_write = true;
 
-            if ( WRITE_SESSIONS_TO_HDD ){
-              string filename =  folder_sessions+"/"+to_string(id);
-              ofstream file;
-              file.open(filename, std::ios_base::app); 
-              for(int k=0; k<length;k++)
-                file << data_buffer[k];
-              file << endl;
-              file.close();
-            }
+                                if (WRITE_SESSIONS_TO_HDD)
+                                {
+                                  string filename = folder_sessions + "/" + to_string(id);
+                                  ofstream file;
+                                  file.open(filename, std::ios_base::app);
+                                  for (int k = 0; k < length; k++)
+                                    file << data_buffer[k];
+                                  file << endl;
+                                  file.close();
+                                }
 
+                                for (int z = 0; z < length; z++)
+                                  full_buffer.push_back(data_buffer[z]);
 
-            for(int z=0; z<length; z++)
-                full_buffer.push_back( data_buffer[z]);
+                                // Increase amount of received bytes
+                                ser->add_bytes_received(length, 0);
 
-            // Increase amount of received bytes
-          	ser->add_bytes_received( length, 0);
+                                // Process buffer
+                                process_buffer(full_buffer, ser, bc, cg);
 
-			     // Process buffer            
-            process_buffer( full_buffer, ser, bc, cg);
+                                // cg->locker_write = false;
+                                // l1.unlock();
+                                // cg->can_write.notify_one();
 
-            // cg->locker_write = false;
-            // l1.unlock();
-            // cg->can_write.notify_one();
+                                // bc->locker_write = false;
+                                // l.unlock();
+                                // bc->can_write.notify_one();
 
-            // bc->locker_write = false;
-            // l.unlock();
-            // bc->can_write.notify_one();
+                                start();
+                              }
+                              else
+                              {
 
+                                // printf("ERROR OCCURED !!!\n");
+                                // fflush(stdout);
+                              }
 
-          	start();
-
-
-
-          }
-          else{
-
-            //printf("ERROR OCCURED !!!\n");
-            //fflush(stdout);
-          }
-
-          // start();
-
-        });
-
-    }
-    catch(...){
-      cout <<"async_read_some failed"<<endl;
-      fflush(stdout);
-      exit(3);
-    }
-
-
-
+                              // start();
+                            });
+  }
+  catch (...)
+  {
+    cout << "async_read_some failed" << endl;
+    fflush(stdout);
+    exit(3);
+  }
 }
 
-
-tcp_connection::tcp_connection(boost::asio::io_service& io_service)
-: socket_(io_service),full_buffer(""), id(0)
+tcp_connection::tcp_connection(boost::asio::io_service &io_service)
+    : socket_(io_service), full_buffer(""), id(0)
 {
 }
-
-
-
-
 
 /*
  *
@@ -177,20 +154,18 @@ tcp_connection::tcp_connection(boost::asio::io_service& io_service)
  *
  */
 
-
-tcp_server::tcp_server(boost::asio::io_service& io_service, string ip, uint32_t port)
-: acceptor_(io_service, tcp::endpoint(tcp::v4(), port)), my_ip(ip), my_port(port), t(new boost::asio::deadline_timer(io_service)), 
-  last_ask_for_incomplete(0), last_ask_for_vote(0), last_request(0), last_print_blockchain(0), last_update_commited(0), bytes_received(0), bytes_txs_received(0), folder_blockchain(string(FOLDER_BLOCKCHAIN)), folder_transaction_pool(string(FOLDER_TRANSACTION_POOL))
+tcp_server::tcp_server(boost::asio::io_service &io_service, string ip, uint32_t port)
+    : acceptor_(io_service, tcp::endpoint(tcp::v4(), port)), my_ip(ip), my_port(port), t(new boost::asio::deadline_timer(io_service)),
+      last_ask_for_incomplete(0), last_ask_for_vote(0), last_request(0), last_print_blockchain(0), last_update_commited(0), bytes_received(0), bytes_txs_received(0), folder_blockchain(string(FOLDER_BLOCKCHAIN)), folder_transaction_pool(string(FOLDER_TRANSACTION_POOL))
 {
-    start_accept();
+  start_accept();
 
-    if ( PING_REPEAT > 0){
-      no_pings = 0;
-      unsigned long time_of_now = std::chrono::system_clock::now().time_since_epoch() /  std::chrono::milliseconds(1);
-      next_ping = time_of_now + PING_MIN_WAIT +  (rng() % (PING_MAX_WAIT-PING_MIN_WAIT) );
-    }
-
-
+  if (PING_REPEAT > 0)
+  {
+    no_pings = 0;
+    unsigned long time_of_now = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+    next_ping = time_of_now + PING_MIN_WAIT + (rng() % (PING_MAX_WAIT - PING_MIN_WAIT));
+  }
 }
 
 int tcp_server::no_peers()
@@ -200,269 +175,274 @@ int tcp_server::no_peers()
 
 int tcp_server::no_connected_peers()
 {
-  int count= 0;
-  for( int i=0; i<peers.size(); i++)
-    count +=  peers[i].connected ;  // peers[i].session != NULL;
+  int count = 0;
+  for (int i = 0; i < peers.size(); i++)
+    count += peers[i].connected; // peers[i].session != NULL;
   return count;
-
 }
 
-
-
-void tcp_server::add_peer( Peer p, bool is_connected)
+void tcp_server::add_peer(Peer p, bool is_connected)
 {
-    if (!(p.ip == my_ip && p.port == my_port )){
+  if (!(p.ip == my_ip && p.port == my_port))
+  {
 
-        string key = p.ip+":"+to_string(p.port);
-        if ( speers.find(key) != speers.end() ) return;
+    string key = p.ip + ":" + to_string(p.port);
+    if (speers.find(key) != speers.end())
+      return;
 
-        if( !is_connected ){
-          p.connected = false;
-          p.session = NULL;
-          p._strand = NULL;
-
-        }
-        peers.push_back(p);
-
-        // Make the hash table of peers (used later to avoid connecting such peers as blind peers)
-        speers.insert( make_pair( key , 1 ) );
+    if (!is_connected)
+    {
+      p.connected = false;
+      p.session = NULL;
+      p._strand = NULL;
     }
-}
+    peers.push_back(p);
 
-void tcp_server::add_indirect_peer_if_doesnt_exist( string p)
-{
-
-  if( speers.find(p) == speers.end() ){
-    int pos = p.find(":");
-        if( pos > 0 ){
-            Peer pr;
-            pr.ip = p.substr(0,pos);
-            pr.port= atoi(p.substr(pos+1,  p.length()).c_str());
-            add_peer( pr, false );
-        }
+    // Make the hash table of peers (used later to avoid connecting such peers as blind peers)
+    speers.insert(make_pair(key, 1));
   }
 }
 
-void tcp_server::add_peers_ip( string ip)
+void tcp_server::add_indirect_peer_if_doesnt_exist(string p)
 {
-    peer_ips.insert( ip );
+
+  if (speers.find(p) == speers.end())
+  {
+    int pos = p.find(":");
+    if (pos > 0)
+    {
+      Peer pr;
+      pr.ip = p.substr(0, pos);
+      pr.port = atoi(p.substr(pos + 1, p.length()).c_str());
+      add_peer(pr, false);
+    }
+  }
 }
 
+void tcp_server::add_peers_ip(string ip)
+{
+  peer_ips.insert(ip);
+}
 
-void tcp_server::close_peer_connection ( uint32_t no)
+void tcp_server::close_peer_connection(uint32_t no)
 {
 
-    if( no >= peers.size() ) return;
+  if (no >= peers.size())
+    return;
 
-    peers[no].session = NULL;
-    peers[no].connected = false;
-    peers[no]._strand = NULL;
- //   peers[no]._m.clear();
+  peers[no].session = NULL;
+  peers[no].connected = false;
+  peers[no]._strand = NULL;
+  //   peers[no]._m.clear();
 
-    if ( PRINT_PEER_CONNECTION_MESSAGES ){
-      printf("\033[31;1mClosing connection to peer %s:%d\033[0m",(peers[no].ip).c_str(),peers[no].port);
-      printf(" ::: #Connected peers : %d", no_connected_peers() );
-      printf("\n");
-      fflush(stdout);
+  if (PRINT_PEER_CONNECTION_MESSAGES)
+  {
+    printf("\033[31;1mClosing connection to peer %s:%d\033[0m", (peers[no].ip).c_str(), peers[no].port);
+    printf(" ::: #Connected peers : %d", no_connected_peers());
+    printf("\n");
+    fflush(stdout);
   }
 }
 
 void tcp_server::print_peers()
 {
-    cout << "Peers:" << endl;
-    for(int i=0; i<peers.size(); i++){
-        cout << '\t'<< (peers[i]).ip<<" : " << peers[i].port << "   connected: " << peers[i].connected<< endl;
-    }
+  cout << "Peers:" << endl;
+  for (int i = 0; i < peers.size(); i++)
+  {
+    cout << '\t' << (peers[i]).ip << " : " << peers[i].port << "   connected: " << peers[i].connected << endl;
+  }
 }
 
-
-void tcp_server::handle_write( boost::system::error_code ec, size_t length, int peer_index)
+void tcp_server::handle_write(boost::system::error_code ec, size_t length, int peer_index)
 {
 
-  if( peer_index >= peers.size() || peers[peer_index]._m.size() <= 0 ) return;
+  if (peer_index >= peers.size() || peers[peer_index]._m.size() <= 0)
+    return;
 
-  string mm =  peers[peer_index]._m[0];
-  if( mm.find("#full_block") == 0 and mm.length() > 10 ){
-      string mz = mm.substr( mm.length() - 14, 13  );
-      bool pr=true;
-      unsigned long sol = safe_stoull( mz, pr);
-      unsigned long nol = std::chrono::system_clock::now().time_since_epoch() /  std::chrono::milliseconds(1);
-      if (pr){
-//        cout <<"GOTIT: "<<(nol-sol)<<endl;
-      }
+  string mm = peers[peer_index]._m[0];
+  if (mm.find("#full_block") == 0 and mm.length() > 10)
+  {
+    string mz = mm.substr(mm.length() - 14, 13);
+    bool pr = true;
+    unsigned long sol = safe_stoull(mz, pr);
+    unsigned long nol = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+    if (pr)
+    {
+      //        cout <<"GOTIT: "<<(nol-sol)<<endl;
+    }
   }
 
-
   peers[peer_index]._m.pop_front();
-  if ( ec ) {
+  if (ec)
+  {
     close_peer_connection(peer_index);
 
     return;
   }
 
-  if ( !peers[peer_index]._m.empty() ){
-    write( peer_index );
+  if (!peers[peer_index]._m.empty())
+  {
+    write(peer_index);
   }
 }
 
-
-void tcp_server::write( int peer_index )
+void tcp_server::write(int peer_index)
 {
-    if( peer_index >= peers.size() ) return;
+  if (peer_index >= peers.size())
+    return;
 
-    string mm =  peers[peer_index]._m[0];
-    if( mm.find("#full_block") == 0 and mm.length() > 10 ){
-        string mz = mm.substr( mm.length() - 14, 13  );
-        bool pr=true;
-        unsigned long sol = safe_stoull( mz, pr);
-        unsigned long nol = std::chrono::system_clock::now().time_since_epoch() /  std::chrono::milliseconds(1);
-        if (pr){
-//          cout <<"TOTIT: "<<(nol-sol)<<endl;
-        }
+  string mm = peers[peer_index]._m[0];
+  if (mm.find("#full_block") == 0 and mm.length() > 10)
+  {
+    string mz = mm.substr(mm.length() - 14, 13);
+    bool pr = true;
+    unsigned long sol = safe_stoull(mz, pr);
+    unsigned long nol = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+    if (pr)
+    {
+      //          cout <<"TOTIT: "<<(nol-sol)<<endl;
     }
+  }
 
-
-
-    if( peer_index < peers.size() &&  peers[peer_index].session != NULL && peers[peer_index].connected && peers[peer_index]._strand != NULL ) {
-      boost::asio::async_write( peers[peer_index].session->socket(), boost::asio::buffer(peers[peer_index]._m[0]),
-                  peers[peer_index]._strand->wrap(
-                                 boost::bind( &tcp_server::handle_write, this, boost::asio::placeholders::error, 
-                                  boost::asio::placeholders::bytes_transferred, peer_index )
-                                 )
-                  );
-    }
-    else{
-      boost::system::error_code ec;
-      handle_write( ec, 0, peer_index );
-    }
+  if (peer_index < peers.size() && peers[peer_index].session != NULL && peers[peer_index].connected && peers[peer_index]._strand != NULL)
+  {
+    boost::asio::async_write(peers[peer_index].session->socket(), boost::asio::buffer(peers[peer_index]._m[0]),
+                             peers[peer_index]._strand->wrap(
+                                 boost::bind(&tcp_server::handle_write, this, boost::asio::placeholders::error,
+                                             boost::asio::placeholders::bytes_transferred, peer_index)));
+  }
+  else
+  {
+    boost::system::error_code ec;
+    handle_write(ec, 0, peer_index);
+  }
 }
 
-
-void tcp_server::strand_write( string message, int peer_index )
+void tcp_server::strand_write(string message, int peer_index)
 {
 
-    if( peer_index >= peers.size() ) return;
+  if (peer_index >= peers.size())
+    return;
 
-    peers[peer_index]._m.push_back( message + "!" );
-    if( peers[peer_index]._m.size() > 1)
-      return;
+  peers[peer_index]._m.push_back(message + "!");
+  if (peers[peer_index]._m.size() > 1)
+    return;
 
+  write(peer_index);
+}
+
+void tcp_server::strand_proceed(int peer_index)
+{
+
+  if (peer_index >= peers.size())
+    return;
+
+  if (peers[peer_index]._m.size() > 0)
     write(peer_index);
-
 }
 
-
-void tcp_server::strand_proceed( int peer_index )
-{
-
-    if( peer_index >= peers.size() ) return;
-
-    if( peers[peer_index]._m.size() > 0)
-      write(peer_index);
-
-}
-
-
-void tcp_server::write_to_all_peers(string message )
+void tcp_server::write_to_all_peers(string message)
 {
 
   // Write to all  peers
-  for( int i=0; i<peers.size(); i++){
+  for (int i = 0; i < peers.size(); i++)
+  {
 
-      if( peers[i]._strand != NULL )
-          peers[i]._strand->post( boost::bind(&tcp_server::strand_write, this, message, i ) );
+    if (peers[i]._strand != NULL)
+      peers[i]._strand->post(boost::bind(&tcp_server::strand_write, this, message, i));
   }
-
 }
 
-
-
-void tcp_server::write_to_one_peer(string peer_ip, uint32_t peer_port, string message )
+void tcp_server::write_to_one_peer(string peer_ip, uint32_t peer_port, string message)
 {
 
-
-    string mm =  message;
-    if( mm.find("#full_block") == 0 and mm.length() > 10 ){
-        string mz = mm.substr( mm.length() - 13, 13  );
-        bool pr=true;
-        unsigned long sol = safe_stoull( mz, pr);
-        unsigned long nol = std::chrono::system_clock::now().time_since_epoch() /  std::chrono::milliseconds(1);
-        if (pr){
-//          cout <<"MOTIT: "<<(nol-sol)<<endl;
-        }
+  string mm = message;
+  if (mm.find("#full_block") == 0 and mm.length() > 10)
+  {
+    string mz = mm.substr(mm.length() - 13, 13);
+    bool pr = true;
+    unsigned long sol = safe_stoull(mz, pr);
+    unsigned long nol = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+    if (pr)
+    {
+      //          cout <<"MOTIT: "<<(nol-sol)<<endl;
     }
+  }
 
+  for (int i = 0; i < peers.size(); i++)
+    if (peers[i].ip == peer_ip && peers[i].port == peer_port)
+    {
 
+      if (peers[i]._strand != NULL)
+        peers[i]._strand->post(boost::bind(&tcp_server::strand_write, this, message, i));
 
-    for( int i=0; i<peers.size(); i++)
-      if(peers[i].ip == peer_ip && peers[i].port == peer_port ){
-
-          if( peers[i]._strand != NULL )
-              peers[i]._strand->post( boost::bind(&tcp_server::strand_write, this, message, i ) );
-
-          break;
-        }
-
+      break;
+    }
 }
-
 
 void tcp_server::run_network()
 {
 
-
   // std::unique_lock<std::mutex> l(bc->lock);
   // bc->can_write.wait( l, [](){return !bc->locker_write;});
   // bc->locker_write = true;
-  
+
   // std::unique_lock<std::mutex> l1(cg->lock);
   // cg->can_write.wait( l1, [](){return !cg->locker_write;});
   // cg->locker_write = true;
 
-  unsigned long time_of_now = std::chrono::system_clock::now().time_since_epoch() /  std::chrono::milliseconds(1);
-
+  unsigned long time_of_now = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
 
   // connecting to peers
-  if ( time_of_now - last_peer_connect > CONNECT_TO_PEERS_MILLISECONDS){
+  if (time_of_now - last_peer_connect > CONNECT_TO_PEERS_MILLISECONDS)
+  {
 
     last_peer_connect = time_of_now;
 
-    //多节点中gossip路由表修改点
-    for( int i=0; i<peers.size(); i++){
-        if( !peers[i].connected /* || peers[i].session == NULL */){
+    // 多节点中gossip路由表修改点
+    for (int i = 0; i < peers.size(); i++)
+    {
+      if (!peers[i].connected /* || peers[i].session == NULL */)
+      {
 
-  //          peers[i].session = make_shared<tcp_connection>(acceptor_.get_io_service());
-          try{
-            peers[i].session = tcp_connection::create(acceptor_.get_io_service());
-          }
-          catch(...){
-            cout << "Creating session threw... nothing major..."<<endl;
-            continue;
-          }
-          peers[i].session->id = rng();
+        //          peers[i].session = make_shared<tcp_connection>(acceptor_.get_io_service());
+        try
+        {
+          peers[i].session = tcp_connection::create(acceptor_.get_io_service());
+        }
+        catch (...)
+        {
+          cout << "Creating session threw... nothing major..." << endl;
+          continue;
+        }
+        peers[i].session->id = rng();
 
-
-          if ( peers[i]._strand == NULL ){
-            try{
-              peers[i]._strand = new boost::asio::io_service::strand( acceptor_.get_io_service() );
-            }
-            catch(...){
-              cout <<"Creating strand threw... nothing major..."<<endl;
-              continue;
-            }
-          }
-
-
-          tcp::endpoint *ep;
-          try {
-            ep = new tcp::endpoint( boost::asio::ip::address_v4::from_string(peers[i].ip), peers[i].port );
-          }
-          catch(...){
-            cout <<"Creating endpoing to "<<peers[i].ip<<":"<<peers[i].port<<" threw... nothing major..."<<endl;
-            continue;
-          }
-
-          peers[i].session->socket().async_connect(*ep, [this,i](boost::system::error_code const& ec) 
+        if (peers[i]._strand == NULL)
+        {
+          try
           {
+            peers[i]._strand = new boost::asio::io_service::strand(acceptor_.get_io_service());
+          }
+          catch (...)
+          {
+            cout << "Creating strand threw... nothing major..." << endl;
+            continue;
+          }
+        }
+
+        tcp::endpoint *ep;
+        try
+        {
+          ep = new tcp::endpoint(boost::asio::ip::address_v4::from_string(peers[i].ip), peers[i].port);
+        }
+        catch (...)
+        {
+          cout << "Creating endpoing to " << peers[i].ip << ":" << peers[i].port << " threw... nothing major..." << endl;
+          continue;
+        }
+
+        peers[i].session->socket().async_connect(*ep, [this, i](boost::system::error_code const &ec)
+                                                 {
             if (!ec)
             {
               if ( i < peers.size() ){
@@ -478,206 +458,214 @@ void tcp_server::run_network()
             else
             {
               close_peer_connection( i );
-            }
-          });   
-
-        }      
+            } });
+      }
     }
   }
 
   // Get incomplete chains
-  if ( time_of_now - last_ask_for_incomplete > ASK_FOR_INCOMPLETE_EACH_MILLISECONDS){
-    
-      for( int i=0; i<CHAINS; i++){
-        vector<BlockHash> hashes = bc->get_incomplete_chain_hashes( i , time_of_now );
-        for ( int j=0; j<hashes.size(); j++){
+  if (time_of_now - last_ask_for_incomplete > ASK_FOR_INCOMPLETE_EACH_MILLISECONDS)
+  {
 
-              if( PRINT_SENDING_MESSAGES ){
-                printf ("\033[34;1mAsking %d: %lx from all peers\033[0m\n", i, hashes[j] );
-                fflush(stdout);
-              }
+    for (int i = 0; i < CHAINS; i++)
+    {
+      vector<BlockHash> hashes = bc->get_incomplete_chain_hashes(i, time_of_now);
+      for (int j = 0; j < hashes.size(); j++)
+      {
 
-              string s = create__ask_block( i, hashes[j], 0, MAX_ASK_BLOCKS );
-              write_to_all_peers( s );
-        }     
+        if (PRINT_SENDING_MESSAGES)
+        {
+          printf("\033[34;1mAsking %d: %lx from all peers\033[0m\n", i, hashes[j]);
+          fflush(stdout);
+        }
+
+        string s = create__ask_block(i, hashes[j], 0, MAX_ASK_BLOCKS);
+        write_to_all_peers(s);
       }
+    }
 
-      last_ask_for_incomplete = time_of_now;
-
+    last_ask_for_incomplete = time_of_now;
   }
 
-  //leader sending blocks
-  if ( time_of_now - last_request >REQUEST_OF_BLOCKS_IN_PHASE_REQUEST_EACH_MILLISECONDS)
+  // leader sending blocks
+  if (time_of_now - last_request > REQUEST_OF_BLOCKS_IN_PHASE_REQUEST_EACH_MILLISECONDS)
   {
-    if(!bc->pre_blocks.empty()){
-      for (auto it = bc->pre_blocks.begin() ; it !=bc->pre_blocks.end() ; it++)
+    if (!bc->pre_blocks.empty())
+    {
+      for (auto it = bc->pre_blocks.begin(); it != bc->pre_blocks.end(); it++)
+      {
+
+        string s = create__consensus_block(it->second.second.round, it->second.second.order_in_round, it->second.second.tx_list.first, it->second.second.tx_list.second);
+        write_to_one_peer(it->second.first.ip, it->second.first.port, s);
+        if (PRINT_SENDING_MESSAGES)
+        {
+          printf("\033[34;1m SENDING consensus block to the peer %s:%d, PHASE REQUESTY!\033[0m\n", it->second.first.ip.c_str(), it->second.first.port);
+          fflush(stdout);
+        }
+      }
+
+      last_request = time_of_now;
+    }
+  }
+
+  // Get votes for blocks
+  if (time_of_now - last_ask_for_vote > ASK_FOR_VOTE_OF_BLOCKS_IN_PHSAE_VALIDATE_EACH_MILLISECONDS && cg->is_consensus_started())
+  {
+
+    vector<pair<BlockHash, network_block>> blocks = bc->get_waiting_for_validate_phase_blocks(time_of_now);
+
+    for (auto it = blocks.begin(); it != blocks.end(); it++)
     {
 
-      string s = create__consensus_block(it->second.second.round, it->second.second.order_in_round, it->second.second.tx_list.first, it->second.second.tx_list.second);
-      write_to_one_peer(it->second.first.ip, it->second.first.port, s);
-      if( PRINT_SENDING_MESSAGES ){
-        printf ("\033[34;1m SENDING consensus block to the peer %s:%d, PHASE REQUESTY!\033[0m\n",it->second.first.ip.c_str(),it->second.first.port);
-        fflush(stdout);
-      }
-    }
-
-    last_request = time_of_now;
-    }
-    
-    
-  }
-  
-  //Get votes for blocks
-  if( time_of_now - last_ask_for_vote > ASK_FOR_VOTE_OF_BLOCKS_IN_PHSAE_VALIDATE_EACH_MILLISECONDS && cg->is_consensus_started() ){
-    
-    vector <pair <BlockHash, network_block>> blocks = bc->get_waiting_for_validate_phase_blocks(time_of_now);
-
-    for (auto it = blocks.begin(); it !=blocks.end(); it++ ){
-      
       string random = to_string(1);
       string s = create__verified_1_info(&it->second, random);
 
-      for(auto it = cg->miner_list.begin(); it !=cg->miner_list.end(); it++){
+      for (auto it = cg->miner_list.begin(); it != cg->miner_list.end(); it++)
+      {
         write_to_one_peer(it->ip, it->port, s);
       }
 
-      if( PRINT_SENDING_MESSAGES ){
-        printf ("\033[34;1m SENDING block %lx to the peer, PHASE VALIDATE!\033[0m\n", it->second.hash);
+      if (PRINT_SENDING_MESSAGES)
+      {
+        printf("\033[34;1m SENDING block %lx to the peer, PHASE VALIDATE!\033[0m\n", it->second.hash);
         fflush(stdout);
       }
-
-
     }
 
     last_ask_for_vote = time_of_now;
   }
 
+  // Get full blocks
+  if (time_of_now - last_ask_for_full > ASK_FOR_FULL_BLOCKS_EACH_MILLISECONDS)
+  {
 
-    // Get full blocks
-  if ( time_of_now - last_ask_for_full > ASK_FOR_FULL_BLOCKS_EACH_MILLISECONDS){
-    
-      vector< pair <BlockHash, uint32_t> > blocks = bc->get_non_full_blocks( time_of_now );
+    vector<pair<BlockHash, uint32_t>> blocks = bc->get_non_full_blocks(time_of_now);
 
-      for( auto it=blocks.begin(); it != blocks.end(); it++){
+    for (auto it = blocks.begin(); it != blocks.end(); it++)
+    {
 
-        if( PRINT_SENDING_MESSAGES ){
-          printf ("\033[34;1mGotFullBlock %d: %lx from all peers\033[0m\n", it->second, it->first );
-          fflush(stdout);
-        }
-
-
-        string s = create__got_full_block(it->second, it->first);
-        write_to_all_peers( s );
+      if (PRINT_SENDING_MESSAGES)
+      {
+        printf("\033[34;1mGotFullBlock %d: %lx from all peers\033[0m\n", it->second, it->first);
+        fflush(stdout);
       }
 
-      //remove waiting blocks if too much wait time has passed
-      bc->remove_waiting_blocks( time_of_now );
+      string s = create__got_full_block(it->second, it->first);
+      write_to_all_peers(s);
+    }
 
-      last_ask_for_full = time_of_now;
+    // remove waiting blocks if too much wait time has passed
+    bc->remove_waiting_blocks(time_of_now);
+
+    last_ask_for_full = time_of_now;
   }
 
+  // Update commited
+  if (time_of_now - last_update_commited > UPDATE_COMMITED_TIME_EACH_MILLISECONDS)
+  {
 
-  // Update commited 
-  if ( time_of_now - last_update_commited > UPDATE_COMMITED_TIME_EACH_MILLISECONDS){
-    
-      bc->update_blocks_commited_time();
-      last_update_commited = time_of_now;
+    bc->update_blocks_commited_time(cg->round);
+
+    last_update_commited = time_of_now;
   }
-
-
 
   // Pings
-  if ( no_pings < PING_REPEAT && next_ping < time_of_now ){
+  if (no_pings < PING_REPEAT && next_ping < time_of_now)
+  {
 
-      no_pings ++;
+    no_pings++;
 
-      string tt = my_ip + ":"+ to_string(my_port)+":"+to_string(no_pings);
-      int mode = no_pings % 2;
-      add_ping( tt, 0, mode ); 
+    string tt = my_ip + ":" + to_string(my_port) + ":" + to_string(no_pings);
+    int mode = no_pings % 2;
+    add_ping(tt, 0, mode);
 
-      string s = create__ping( tt , 0, time_of_now, mode );
-      ser->write_to_all_peers( s );
+    string s = create__ping(tt, 0, time_of_now, mode);
+    ser->write_to_all_peers(s);
 
-
-      next_ping = time_of_now + 1000*(PING_MIN_WAIT +  (rng() % (PING_MAX_WAIT-PING_MIN_WAIT) ) );
-
+    next_ping = time_of_now + 1000 * (PING_MIN_WAIT + (rng() % (PING_MAX_WAIT - PING_MIN_WAIT)));
   }
 
-
-
   // Print blockchain, attention that the EXPECTED_MINE_TIME_IN_MILLISECONDS can be revised
-  if ( time_of_now - last_print_blockchain > PRINT_BLOCKCHAIN_EACH_MILLISECONDS){
+  if (time_of_now - last_print_blockchain > PRINT_BLOCKCHAIN_EACH_MILLISECONDS)
+  {
 
-      unsigned long time_of_finish = std::chrono::system_clock::now().time_since_epoch() /  std::chrono::milliseconds(1);
-      float secs = (time_of_finish - time_of_start)/ 1000.0;
-      
-      unsigned long tx_size = create_one_transaction().size();
-    
-      printf("-------------------------------------Server: %s:%d-------------------------------------------\n", my_ip.c_str(), my_port);
-      printf("\n=============== [MAIN:   ]    #Chains:  %4d   Mine time: %7.0f msecs   Block size : %.0f KB   Transaction size: %.2f KB ", CHAINS, (float)EXPECTED_MINE_TIME_IN_MILLISECONDS, (float)BLOCK_SIZE_IN_BYTES/1024.0, (float)tx_size/1024.0);
-      printf("\n");
-      
-      printf("\n=============== [NETWORK:]    #Peers    : %3d :  ", no_connected_peers() );
-      for( int j=0; j<peers.size(); j++) {
-        if( !peers[j].connected ) printf ("\033[37m");
-        else printf ("\033[1m");
-        printf("%s:%d ", peers[j].ip.c_str(), peers[j].port);
-        printf ("\033[0m" );
-      }
-      printf("\n");
-      //no txs, add additional data
-      unsigned long bytes_total = bytes_received + bytes_txs_received;
-      
-      printf("\n=============== [NETWORK THROUGHPUT:] MB: %.1f   MB/s: %.2f    GB/h:  %.1f  ::::  txs MB/s:  %.2f  txs GB/h:  %.1f \n",
-             bytes_total/(1024.0*1024), bytes_total/(1024.0*1024)/secs, bytes_total/(1024.0*1024)/secs * 3600/1000,
-        bytes_txs_received/(1024.0*1024)/secs, bytes_txs_received/(1024.0*1024)/secs * 3600/1000);
-      
-      printf("\n=============== [NETWORK TXS       :] Verified :  %8ld     Rate: %.0f txs/s  \n", no_verified_transactions, no_verified_transactions/ secs);
+    unsigned long time_of_finish = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+    float secs = (time_of_finish - time_of_start) / 1000.0;
 
-      cg->print_consensus_info();
-      bc->specific_print_blockchain();
-      last_print_blockchain = time_of_now;
+    unsigned long tx_size = create_one_transaction().size();
 
-      printf("--------------------------------------------------------------------------------------------------------\n");
+    printf("-------------------------------------Server: %s:%d-------------------------------------------\n", my_ip.c_str(), my_port);
+    printf("\n=============== [MAIN:   ]    Concurrent block Numbers: %d  Mine time: %7.0f msecs   Block size : %.0f KB   Transaction size: %.2f KB ", CHAINS, (float)EXPECTED_MINE_TIME_IN_MILLISECONDS, (float)BLOCK_SIZE_IN_BYTES / 1024.0, (float)tx_size / 1024.0);
+    printf("\n");
 
+    printf("\n=============== [NETWORK:]    Peers    : %3d :  ", no_connected_peers());
+    for (int j = 0; j < peers.size(); j++)
+    {
+      if (!peers[j].connected)
+        printf("\033[37m");
+      else
+        printf("\033[1m");
+      printf("%s:%d ", peers[j].ip.c_str(), peers[j].port);
+      printf("\033[0m");
+    }
+    printf("\n");
+    // no txs, add additional data
 
+    unsigned long bytes_total = bytes_received + bytes_txs_received;
 
-      // Store blockchain hash 
-      // -6 
-      if ( WRITE_HASH_TO_HDD ){
+    printf("\n=============== [NETWORK THROUGHPUT:] MB: %.1f   MB/s: %.2f    GB/h:  %.1f  ::::  txs MB/s:  %.2f  txs GB/h:  %.1f \n",
+           bytes_total / (1024.0 * 1024), bytes_total / (1024.0 * 1024) / secs, bytes_total / (1024.0 * 1024) / secs * 3600 / 1000,
+           bytes_txs_received / (1024.0 * 1024) / secs, bytes_txs_received / (1024.0 * 1024) / secs * 3600 / 1000);
 
-        block *b = bc->get_deepest_child_by_chain_id(0) ;
-        int dp = 0;
-        while( (dp++) < STORE_HASH_MINUS && NULL != b && NULL != b->parent)
-            b = b->parent;
+    printf("\n=============== [TXS       :] Verified :  %8ld     Rate: %.0f txs/s  \n", no_verified_transactions, no_verified_transactions / secs);
 
-        if ( NULL != b && NULL != b->nb ){
+    cg->print_consensus_info();
+    bc->specific_print_blockchain();
 
-          int maxd= b->nb->depth;
-          vector <string> vals;
-          while ( NULL !=b && b->nb->depth > last_stored_hash_depth  ){
-          
-            if ( ( b->nb->depth % STORE_HASH_FREQ) == 0 ){
-              stringstream stream;
-              stream << b->nb->depth << ":" << hex <<  b->hash << dec;
-              vals.push_back( stream.str() );
-            }
+    last_print_blockchain = time_of_now;
 
-            b = b -> parent;
+    printf("--------------------------------------------------------------------------------------------------------\n");
+
+    // Store blockchain hash
+    // -6
+    if (WRITE_HASH_TO_HDD)
+    {
+
+      block *b = bc->get_deepest_child_by_chain_id(0);
+      int dp = 0;
+      while ((dp++) < STORE_HASH_MINUS && NULL != b && NULL != b->parent)
+        b = b->parent;
+
+      if (NULL != b && NULL != b->nb)
+      {
+
+        int maxd = b->nb->depth;
+        vector<string> vals;
+        while (NULL != b && b->nb->depth > last_stored_hash_depth)
+        {
+
+          if ((b->nb->depth % STORE_HASH_FREQ) == 0)
+          {
+            stringstream stream;
+            stream << b->nb->depth << ":" << hex << b->hash << dec;
+            vals.push_back(stream.str());
           }
 
-          if ( maxd >= 0){
-            last_stored_hash_depth = maxd;
-            string filename =  string(FOLDER_HASHES)+"/"+my_ip+to_string(my_port);
-            ofstream file;
-            file.open(filename, std::ios_base::app); 
-            for( int j=vals.size()-1; j>=0; j--)
-              file << vals[j] << endl;
-            file.close();
-          }
+          b = b->parent;
+        }
+
+        if (maxd >= 0)
+        {
+          last_stored_hash_depth = maxd;
+          string filename = string(FOLDER_HASHES) + "/" + my_ip + to_string(my_port);
+          ofstream file;
+          file.open(filename, std::ios_base::app);
+          for (int j = vals.size() - 1; j >= 0; j--)
+            file << vals[j] << endl;
+          file.close();
         }
       }
-
+    }
   }
 
   // cg->locker_write = false;
@@ -688,144 +676,129 @@ void tcp_server::run_network()
   // l.unlock();
   // bc->can_write.notify_one();
 
-
-
-
   // Repeat
-  auto runcb = [this](boost::system::error_code const& error) { run_network(); };
+  auto runcb = [this](boost::system::error_code const &error)
+  { run_network(); };
   t->expires_from_now(boost::posix_time::milliseconds(RUN_NETWORK_EACH_MILLISECONDS));
   t->async_wait(runcb);
-
-
-
 }
-
-
 
 void tcp_server::start_accept()
 {
-    tcp_connection::pointer new_connection = tcp_connection::create(acceptor_.get_io_service());
-    new_connection->id = rng();
+  tcp_connection::pointer new_connection = tcp_connection::create(acceptor_.get_io_service());
+  new_connection->id = rng();
 
-
-    acceptor_.async_accept(new_connection->socket(),
-        boost::bind(&tcp_server::handle_accept, this, new_connection,
-          boost::asio::placeholders::error));
+  acceptor_.async_accept(new_connection->socket(),
+                         boost::bind(&tcp_server::handle_accept, this, new_connection,
+                                     boost::asio::placeholders::error));
 }
 
-void tcp_server::handle_accept(tcp_connection::pointer new_connection,const boost::system::error_code& error)
+void tcp_server::handle_accept(tcp_connection::pointer new_connection, const boost::system::error_code &error)
 {
-    if (!error)
+  if (!error)
+  {
+    string connecting_ip = new_connection->socket().remote_endpoint().address().to_string();
+
+    if (REJECT_CONNECTIONS_FROM_UNKNOWNS && peer_ips.find(connecting_ip) == peer_ips.end())
     {
-      string connecting_ip = new_connection->socket().remote_endpoint().address().to_string();
-
-      if( REJECT_CONNECTIONS_FROM_UNKNOWNS && peer_ips.find(connecting_ip) == peer_ips.end() ){
-        printf("\033[31;1m[-] IP (%s) of peer not in the list of allowed\n\033[0m", connecting_ip.c_str() );
-      }
-      else{
-
-        new_connection->start();
-        printf("\033[32;1m[+] Connection established from %s:%d\n\033[0m", 
-            new_connection->socket().remote_endpoint().address().to_string().c_str(), new_connection->socket().remote_endpoint().port());
-      }
+      printf("\033[31;1m[-] IP (%s) of peer not in the list of allowed\n\033[0m", connecting_ip.c_str());
     }
+    else
+    {
 
-    start_accept();
+      new_connection->start();
+      printf("\033[32;1m[+] Connection established from %s:%d\n\033[0m",
+             new_connection->socket().remote_endpoint().address().to_string().c_str(), new_connection->socket().remote_endpoint().port());
+    }
+  }
+
+  start_accept();
 }
 
-
-
-
-void tcp_server::send_block_to_peers(network_block *nb ) 
+void tcp_server::send_block_to_peers(network_block *nb)
 {
 
-  if( PRINT_SENDING_MESSAGES ){
-    printf ("\033[34;1mSending %d: (%lx %lx) to all peers\033[0m\n", nb->chain_id, nb->parent, nb->hash );
+  if (PRINT_SENDING_MESSAGES)
+  {
+    printf("\033[34;1mSending %d: (%lx %lx) to all peers\033[0m\n", nb->chain_id, nb->parent, nb->hash);
     fflush(stdout);
   }
 
-  string s = create__process_block( nb );
-  write_to_all_peers( s );
-
+  string s = create__process_block(nb);
+  write_to_all_peers(s);
 }
 
 void tcp_server::send_verify_block_to_peers(network_block *nb)
 {
-    if( PRINT_SENDING_MESSAGES ){
-        printf ("\033[34;1mSending %d: (%lx %lx) to all peers\033[0m\n", nb->chain_id, nb->parent, nb->hash );
-        fflush(stdout);
-    }
-
-
+  if (PRINT_SENDING_MESSAGES)
+  {
+    printf("\033[34;1mSending %d: (%lx %lx) to all peers\033[0m\n", nb->chain_id, nb->parent, nb->hash);
+    fflush(stdout);
+  }
 }
 
-
-void tcp_server::send_block_to_one_peer(string sender_ip, uint32_t sender_port, uint32_t chain_id, BlockHash parent, BlockHash hash, block *b )
+void tcp_server::send_block_to_one_peer(string sender_ip, uint32_t sender_port, uint32_t chain_id, BlockHash parent, BlockHash hash, block *b)
 {
 
-  if( PRINT_SENDING_MESSAGES ){
-    printf ("\033[34;1mSending %d: (%lx %lx) to peer %s:%d\033[0m\n", chain_id, parent,hash, sender_ip.c_str(), sender_port );
+  if (PRINT_SENDING_MESSAGES)
+  {
+    printf("\033[34;1mSending %d: (%lx %lx) to peer %s:%d\033[0m\n", chain_id, parent, hash, sender_ip.c_str(), sender_port);
     fflush(stdout);
   }
 
-  string s = create__process_block( b->nb );
-  write_to_one_peer(sender_ip, sender_port, s );
+  string s = create__process_block(b->nb);
+  write_to_one_peer(sender_ip, sender_port, s);
 }
-
-
-
 
 string tcp_server::get_server_folder()
 {
-  return folder_blockchain+"/_"+my_ip+"_"+to_string(my_port);
+  return folder_blockchain + "/_" + my_ip + "_" + to_string(my_port);
 }
 
 string tcp_server::get_transaction_pool_folder()
 {
-    return folder_transaction_pool;
+  return folder_transaction_pool;
 }
 
-
-void tcp_server::additional_verified_transaction( uint32_t add_new)
+void tcp_server::additional_verified_transaction(uint32_t add_new)
 {
   no_verified_transactions += add_new;
 }
 
-void tcp_server::add_bytes_received( uint32_t br, uint32_t mbr )
+void tcp_server::add_bytes_received(uint32_t br, uint32_t mbr)
 {
   bytes_received += br;
   bytes_txs_received += mbr;
 }
 
-
-bool tcp_server::add_ping( string tt, int dnext, bool overwrite )
+bool tcp_server::add_ping(string tt, int dnext, bool overwrite)
 {
 
-  if (overwrite ){
-    auto it = pings.find( tt );
+  if (overwrite)
+  {
+    auto it = pings.find(tt);
 
-    if( it == pings.end() || it->second > dnext ){
+    if (it == pings.end() || it->second > dnext)
+    {
       pings[tt] = dnext;
       return true;
     }
     return false;
   }
 
+  if (pings.find(tt) != pings.end())
+    return false;
 
-  if ( pings.find( tt ) != pings.end() ) return false;
-
-  pings.insert( make_pair(tt,dnext) );
+  pings.insert(make_pair(tt, dnext));
   return true;
 }
 
-
 string tcp_server::get_ip()
 {
-    return ::my_ip;
+  return ::my_ip;
 }
-
 
 uint32_t tcp_server::get_port()
 {
-    return ::my_port;
+  return ::my_port;
 }

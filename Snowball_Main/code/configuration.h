@@ -10,7 +10,6 @@
 using namespace std;
 using namespace boost;
 
-
 void set_configuration(string filepath);
 
 #endif
