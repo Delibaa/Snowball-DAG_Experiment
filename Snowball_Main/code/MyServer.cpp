@@ -487,19 +487,21 @@ void tcp_server::run_network()
     last_ask_for_incomplete = time_of_now;
   }
 
-  // leader sending blocks
+  // Phase Request
   if (time_of_now - last_request > REQUEST_OF_BLOCKS_IN_PHASE_REQUEST_EACH_MILLISECONDS)
   {
     if (!bc->pre_blocks.empty())
     {
-      for (auto it = bc->pre_blocks.begin(); it != bc->pre_blocks.end(); it++)
+      vector<pair<sender_info, consensus_part>> blocks = bc->get_waiting_for_request_phase_blocks(time_of_now);
+
+      for (auto it = blocks.begin(); it != blocks.end(); it++)
       {
 
-        string s = create__consensus_block(it->second.second.round, it->second.second.order_in_round, it->second.second.tx_list.first, it->second.second.tx_list.second);
-        write_to_one_peer(it->second.first.ip, it->second.first.port, s);
+        string s = create__consensus_block(it->second.round, it->second.order_in_round, it->second.tx_list.first, it->second.tx_list.second);
+        write_to_one_peer(it->first.ip, it->first.port, s);
         if (PRINT_SENDING_MESSAGES)
         {
-          printf("\033[34;1m SENDING consensus block to the peer %s:%d, PHASE REQUESTY!\033[0m\n", it->second.first.ip.c_str(), it->second.first.port);
+          printf("\033[34;1m SENDING consensus block to the peer %s:%d, PHASE REQUESTY!\033[0m\n", it->first.ip.c_str(), it->first.port);
           fflush(stdout);
         }
       }
@@ -508,7 +510,7 @@ void tcp_server::run_network()
     }
   }
 
-  // Get votes for blocks
+  // Phase validate
   if (time_of_now - last_ask_for_vote > ASK_FOR_VOTE_OF_BLOCKS_IN_PHSAE_VALIDATE_EACH_MILLISECONDS && cg->is_consensus_started())
   {
 

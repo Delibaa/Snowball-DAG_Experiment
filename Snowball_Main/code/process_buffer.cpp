@@ -479,7 +479,7 @@ void process_buffer(string &m, tcp_server *ser, Blockchain *bc, Consensus_Group 
                         float secs = (time_of_now - time_of_start) / 1000.0;
                         float secs_of_conensus_group = (time_of_now - time_of_consensus_group_start) / 1000.0;
 
-                        cg->add_in_history(cg->round, cg->miner_list, secs);
+                        cg->add_in_history(cg->round, cg->miner_list, secs_of_conensus_group);
 
                         // round update
                         int rf = cg->round + 1;
@@ -899,7 +899,7 @@ void process_buffer(string &m, tcp_server *ser, Blockchain *bc, Consensus_Group 
                             fflush(stdout);
                         }
                         // upadating
-                        cg->add_in_history(cg->round, cg->miner_list, secs);
+                        cg->add_in_history(cg->round, cg->miner_list, secs_of_conensus_group);
 
                         // round update
                         int rf = cg->round + 1;

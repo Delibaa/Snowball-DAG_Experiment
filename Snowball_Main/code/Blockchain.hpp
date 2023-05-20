@@ -56,10 +56,10 @@ typedef struct networkblocks
 	uint32_t next_rank;
 	unsigned long time_mined;
 	unsigned long time_received;
-	// 时间延迟断点
+	// time signal
 	unsigned long time_commited[NO_T_DISCARDS];
 	unsigned long time_partial[NO_T_DISCARDS];
-
+	//consensus part
 	consensus_part consensusPart;
 
 } network_block;
@@ -112,26 +112,29 @@ public:
 	// consensus block part
 	map<BlockHash, pair<int, unsigned long>> blocks_in_phase_validate;
 	map<BlockHash, network_block> waiting_for_phase_1_block;
+
 	map<int, pair<sender_info, consensus_part>> pre_blocks;
+	map<int, unsigned long> blocks_in_phase_request;
+	
 	unsigned long total_ask_for_verify1_blocks_in_one_round;
 	unsigned long total_verify_local_block;
 
 	// consensus block count
 	map<int, unsigned long> total_ask_for_verify_blocks;
 	map<int, unsigned long> total_verify_blocks;
-	// private before
+	// latency computing
 	unsigned long long receiving_latency;
 	unsigned long receving_total;
-
+    
+	// consensus block part
 	bool add_total_ask_for_verify_blocks(int round);
 	bool add_total_verify_blocks(int round);
-
-	// consensus block part
 	bool add_waiting_for_phase_1_blocks(BlockHash hash, network_block nb);
 	void set_block_validated_in_phase_validate(uint32_t chain_id, BlockHash hash);
 	vector<pair<BlockHash, network_block>> get_waiting_for_validate_phase_blocks(unsigned long time_of_now);
 	int get_numbers_of_concurrency_blocks_in_a_round(int round);
 	bool add_pre_blocks(string ip, uint32_t port, consensus_part cp_tmp);
+	vector<pair<sender_info, consensus_part>> get_waiting_for_request_phase_blocks(unsigned long time_of_now);
 	void set_block_requested_in_phase_request(int order_in_round);
 
 	bool locker_write = false;

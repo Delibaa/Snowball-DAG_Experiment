@@ -208,7 +208,6 @@ bool Consensus_Group::add_in_future(int round, std::string ip, uint32_t port)
 
 bool Consensus_Group::legitimate_certificate(bool certificate)
 {
-    // 修改成为验证逻辑
     if (certificate)
         return true;
     return false;

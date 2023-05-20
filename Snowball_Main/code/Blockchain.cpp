@@ -473,6 +473,7 @@ Blockchain::Blockchain(BlockHash hashes[MAX_CHAINS])
 	pre_blocks.clear();
 	total_ask_for_verify_blocks.clear();
 	total_verify_blocks.clear();
+	blocks_in_phase_request.clear();
 
 	// latency
 	receiving_latency = receving_total = 0;
@@ -816,6 +817,19 @@ vector<pair<BlockHash, network_block>> Blockchain::get_waiting_for_validate_phas
 	return wvb;
 }
 
+vector<pair<sender_info, consensus_part>>Blockchain::get_waiting_for_request_phase_blocks(unsigned long time_of_now){
+	vector<pair<sender_info, consensus_part>> wrb;
+
+	for(auto it = blocks_in_phase_request.begin(); it != blocks_in_phase_request.end(); it++){
+		if(time_of_now - it->second > REQUEST_OF_BLOCKS_IN_PHASE_REQUEST_INDIVIDUAL_EACH_MILLISECONDS){
+
+			wrb.push_back(make_pair(pre_blocks.find(it->first)->second.first, pre_blocks.find(it->first)->second.second));
+			it->second = time_of_now;
+		}
+	}
+	return wrb;
+}
+
 void Blockchain::remove_waiting_blocks(unsigned long time_of_now)
 {
 
@@ -983,9 +997,13 @@ bool Blockchain::add_pre_blocks(std::string ip, uint32_t port, consensus_part cp
 
 		sender_info info = {ip, port};
 		pre_blocks.insert(make_pair(cp_tmp.order_in_round, make_pair(info, cp_tmp)));
+		//single pre block time
+		blocks_in_phase_request.insert(make_pair(cp_tmp.order_in_round, 0));
 
 		return true;
 	}
+
+    printf("=======Pre_block with %d in round %d has been received=======",cp_tmp.order_in_round, cp_tmp.round);
 	return false;
 }
 
@@ -1013,6 +1031,10 @@ void Blockchain::set_block_requested_in_phase_request(int order_in_round)
 	if (pre_blocks.find(order_in_round) != pre_blocks.end())
 	{
 		pre_blocks.erase(order_in_round);
+	}
+	if (blocks_in_phase_request.find(order_in_round) != blocks_in_phase_request.end())
+	{
+		blocks_in_phase_request.erase(order_in_round);
 	}
 }
 
