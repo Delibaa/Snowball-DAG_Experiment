@@ -204,45 +204,7 @@ string create__full_block(uint32_t chain_id, BlockHash hash, tcp_server *ser, Bl
   string s = "#full_block," + my_ip + "," + to_string(my_port) + "," + to_string(chain_id) + "," + to_string(hash) + ",";
 
   block *b = bc->find_block_by_hash_and_chain_id(hash, chain_id);
-  s += to_string(b->nb->consensusPart.verify_1_numbers) + ",";
-
-  if (WRITE_BLOCKS_TO_HDD)
-  {
-    string filename = ser->get_server_folder() + "/" + blockhash_to_string(hash);
-    ifstream file;
-    try
-    {
-      file.open(filename);
-    }
-    catch (const std::string &ex)
-    {
-      return "";
-    }
-
-    stringstream buffer;
-    buffer << file.rdbuf();
-    s += buffer.str();
-
-    if (buffer.str().size() < 10)
-    {
-      cout << "Providing:" << s << ":" << endl;
-      cout << "BAD buffer" << endl;
-      fflush(stdout);
-      exit(1);
-    }
-  }
-  else
-  {
-    string tx;
-    if (NULL != b && b->nb->no_txs > 0)
-    {
-      for (int j = 0; j < b->nb->no_txs; j++)
-      {
-        tx = create_one_transaction();
-        s += tx + "\n";
-      }
-    }
-  }
+  s += to_string(b->nb->consensusPart.verify_1_numbers);
 
   // Add everything removed from process_block
   network_block *nb = b->nb;
@@ -282,16 +244,16 @@ bool parse__full_block(vector<std::string> sp, map<string, int> &passed, string 
   chain_id = safe_stoi(sp[3], pr);
   hash = safe_stoull(sp[4], pr);
   nb.consensusPart.verify_1_numbers = safe_stoi(sp[5], pr);
-  txs = sp[6];
+  // txs = sp[6];
 
-  nb.trailing = safe_stoull(sp[7], pr);
-  nb.trailing_id = safe_stoi(sp[8], pr);
-  nb.merkle_root_chains = sp[9];
-  nb.merkle_root_txs = sp[10];
+  nb.trailing = safe_stoull(sp[6], pr);
+  nb.trailing_id = safe_stoi(sp[7], pr);
+  nb.merkle_root_chains = sp[8];
+  nb.merkle_root_txs = sp[9];
   for (int j = 0; j < MPL; j++)
-    nb.proof_new_chain.push_back(sp[11 + j]);
-  nb.time_mined = safe_stoull(sp[11 + 1 * MPL], pr);
-  sent_time = safe_stoull(sp[11 + 1 * MPL + 1], pr);
+    nb.proof_new_chain.push_back(sp[10 + j]);
+  nb.time_mined = safe_stoull(sp[10 + 1 * MPL], pr);
+  sent_time = safe_stoull(sp[10 + 1 * MPL + 1], pr);
 
   if (PRINT_TRANSMISSION_ERRORS && !(pr && sender_ip.size() > 0 && chain_id < CHAINS))
   {
@@ -346,7 +308,6 @@ bool parse__mining_succeed(vector<std::string> sp, map<string, int> &passed, str
 {
   if (sp.size() < 6)
     return false;
-  // 需要修改
   if (key_present(sp[0] + sp[1] + sp[2] + sp[3] + sp[4], passed))
     return false;
 
@@ -366,18 +327,18 @@ bool parse__mining_succeed(vector<std::string> sp, map<string, int> &passed, str
   return true;
 }
 
-string create__consensus_block(int round, int order, int tx_first, int tx_second)
+string create__consensus_block(consensus_part *cp)
 {
-  string s = "#consensus_block," + my_ip + "," + to_string(my_port) + "," + to_string(round) + "," + to_string(order) + "," + to_string(tx_first) + "," + to_string(tx_second);
+  string s = "#consensus_block," + my_ip + "," + to_string(my_port) + "," + to_string(cp->round) + "," + to_string(cp->order_in_round) + "," + to_string(cp->tx_list.first) + "," + to_string(cp->tx_list.second) + "," + cp->list;
 
   return s;
 }
 
 bool parse__consensus_block(vector<std::string> sp, map<string, int> &passed, string &sender_ip, uint32_t &sender_port, consensus_part &cp)
 {
-  if (sp.size() < 7)
+  if (sp.size() < 8)
     return false;
-  // 需要修改
+
   if (key_present(sp[0] + sp[1] + sp[2] + sp[3] + sp[4] + sp[5] + sp[6], passed))
     return false;
 
@@ -388,6 +349,7 @@ bool parse__consensus_block(vector<std::string> sp, map<string, int> &passed, st
   cp.order_in_round = safe_stoi(sp[4], pr);
   cp.tx_list.first = safe_stoi(sp[5], pr);
   cp.tx_list.second = safe_stoi(sp[6], pr);
+  cp.list = sp[7];
 
   if (PRINT_TRANSMISSION_ERRORS && !(pr && sender_ip.size() > 0))
   {
@@ -470,7 +432,7 @@ bool parse__verified_1_info(vector<std::string> sp, map<string, int> &passed, st
   nb.consensusPart.order_in_round = safe_stoi(sp[11], pr);
   nb.consensusPart.tx_list.first = safe_stoi(sp[12], pr);
   nb.consensusPart.tx_list.second = safe_stoi(sp[13], pr);
-  nb.merkle_root_txs = sp[14];
+  nb.consensusPart.merkel_root_of_txs = sp[14];
 
   if (PRINT_TRANSMISSION_ERRORS && !(pr && sender_ip.size() > 0))
   {

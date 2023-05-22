@@ -100,8 +100,6 @@ bool mine_new_block(Blockchain *bc, consensus_part cp)
 
     // hash to produce the hash of the new block
     string merkle_root_chains = compute_merkle_tree_root(leaves);
-
-    //这个地方不需要改，只需要作为2f+1引用取块的代替，毕竟只验证上面部分
     string merkle_root_txs = to_string(rng());
     string h = sha256(merkle_root_chains + merkle_root_txs);
 
@@ -112,9 +110,7 @@ bool mine_new_block(Blockchain *bc, consensus_part cp)
     BlockHash new_block = string_to_blockhash(h);
 
     // Create a block
-    uint32_t no_txs = TX_NUMBERS_IN_A_BLOCK;
-
-    //1.根据cp中的order创建blokchain文件 2.更新tx_list为交易的哈希值 3.更新cp中的交易默克尔根
+    uint32_t no_txs = cp.tx_list.second - cp.tx_list.first;
     bool tmp = create_block_from_transaction_pool(&cp, ser->get_server_folder() + "/" + blockhash_to_string(new_block));
 
     if (!tmp)
@@ -159,7 +155,7 @@ bool mine_new_block(Blockchain *bc, consensus_part cp)
     nb.consensusPart.round = cp.round;
     nb.consensusPart.order_in_round = cp.order_in_round;
     nb.consensusPart.tx_list = cp.tx_list;
-    nb.consensusPart.merkel_root_of_txs = merkle_root_txs;
+    nb.consensusPart.merkel_root_of_txs = cp.merkel_root_of_txs;
     nb.consensusPart.verify_1_numbers = cp.verify_1_numbers;
     nb.consensusPart.verify_2_numbers = cp.verify_2_numbers;
 
@@ -176,7 +172,7 @@ bool mine_new_block(Blockchain *bc, consensus_part cp)
         }
     }
 
-    //add for Phase validate
+    // add for Phase validate
     bc->add_waiting_for_phase_1_blocks(nb.hash, nb);
     bc->add_mined_block();
 
@@ -204,11 +200,10 @@ bool mine_Consensus_blocks(Blockchain *bc, Consensus_Group *cg)
             for (int j = 0; j < block_numbers; j++)
             {
 
-                // pre set 500 txs
                 consensus_part_tmp.round = cg->round;
                 consensus_part_tmp.order_in_round = order_in_round;
-                //这个地方去掉tx_list的赋值，在mine_new_block里面
                 consensus_part_tmp.tx_list = pair<int, int>(tx_list, tx_list + TX_NUMBERS_IN_A_BLOCK);
+                consensus_part_tmp.list = "";
                 consensus_part_tmp.verify_1_numbers = cg->miner_list[i].share_of_block;
                 consensus_part_tmp.verify_2_numbers = cg->miner_list[i].share_of_block;
 
@@ -224,8 +219,15 @@ bool mine_Consensus_blocks(Blockchain *bc, Consensus_Group *cg)
 
                 consensus_part_tmp.round = cg->round;
                 consensus_part_tmp.order_in_round = order_in_round;
-                //这个地方根据order_in_round映射，然后将映射区块的哈希列表放到tx_list里
+                // partial blocks
                 consensus_part_tmp.tx_list = pair<int, int>(tx_list, tx_list + TX_NUMBERS_IN_A_BLOCK);
+                consensus_part_tmp.list = "";
+                if (!generate_concurrent_blocks(&consensus_part_tmp))
+                {
+                    printf("\n\033[33;1m[!] Generate concurrent FALSE in round %d with order in round %d\n\033[0m\n", consensus_part_tmp.round, consensus_part_tmp.order_in_round);
+                    fflush(stdout);
+                    continue;
+                }
                 order_in_round++;
                 tx_list += TX_NUMBERS_IN_A_BLOCK;
 
@@ -235,7 +237,7 @@ bool mine_Consensus_blocks(Blockchain *bc, Consensus_Group *cg)
 
             if (PRINT_CONSENSUS_MESSAGE)
             {
-                printf("\033[34;1m WILL send %d Consensus block to the peer %s:%d\033[0m\n", block_numbers, cg->miner_list[i].ip.c_str(), cg->miner_list[i].port);
+                printf("\033[34;1m[+] WILL send %d Consensus block to the peer %s:%d\033[0m\n", block_numbers, cg->miner_list[i].ip.c_str(), cg->miner_list[i].port);
                 fflush(stdout);
             }
         }
@@ -252,7 +254,7 @@ uint32_t get_mine_time_in_milliseconds()
 
     if (PRINT_MINING_MESSAGES)
     {
-        printf("\033[33;1m[ ] Will mine new block in  %.3f  seconds \n\033[0m", (float)msec / 1000);
+        printf("\033[33;1m Will mine new block in  %.3f  seconds \n\033[0m", (float)msec / 1000);
         fflush(stdout);
     }
 
@@ -262,7 +264,7 @@ uint32_t get_mine_time_in_milliseconds()
 void miner(Blockchain *bc, Consensus_Group *cg)
 {
     // time to connect network first
-    boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+    boost::this_thread::sleep(boost::posix_time::milliseconds(2000));
 
     // mining loop
     while (true)
@@ -281,8 +283,6 @@ void miner(Blockchain *bc, Consensus_Group *cg)
                 // references from last round
                 int con_blocks = bc->get_numbers_of_concurrency_blocks_in_a_round(round_now - 1);
 
-                // printf("\n++++++++ Test the concurrency Log point %d +++++\n", con_blocks);
-
                 if (con_blocks == CONCURRENCY_BLOCKS)
                 {
 
@@ -290,14 +290,14 @@ void miner(Blockchain *bc, Consensus_Group *cg)
                     MINER_CERTIFICATE = true;
                     if (PRINT_MINING_MESSAGES)
                     {
-                        printf("\033[33;1m[ ] Mining succeed! \n\033[0m");
+                        printf("\033[33;1m[+] Mining succeed! \n\033[0m");
                     }
                 }
                 else
                 {
                     if (PRINT_MINING_MESSAGES)
                     {
-                        printf("\033[33;1m[ ] Not qualified for mining! \n\033[0m");
+                        printf("\033[33;1m[!] Not qualified for mining! \n\033[0m");
                     }
                     boost::this_thread::sleep(boost::posix_time::seconds(1));
                     continue;
@@ -310,7 +310,7 @@ void miner(Blockchain *bc, Consensus_Group *cg)
                 MINER_CERTIFICATE = true;
                 if (PRINT_MINING_MESSAGES)
                 {
-                    printf("\033[33;1m[ ] Mining succeed! \n\033[0m");
+                    printf("\033[33;1m[+] Mining succeed! \n\033[0m");
                 }
             }
 
@@ -364,8 +364,6 @@ void miner(Blockchain *bc, Consensus_Group *cg)
                 std::unique_lock<std::mutex> lock_mining(mining_lock);
                 go_on_mining.wait(lock_mining, []
                                   { return mining; });
-
-                // printf("\n+++++++++ test round continue,the round is %d++++++\n",cg->round);
             }
         }
         catch (boost::thread_interrupted &)
@@ -373,15 +371,13 @@ void miner(Blockchain *bc, Consensus_Group *cg)
 
             if (PRINT_CONSENSUS_MESSAGE)
             {
-                printf("\033[33;1m[ ] Miner Interrupted!\n\033[0m");
+                printf("\033[33;1m[!] Miner Interrupted!\n\033[0m");
             }
             fflush(stdout);
 
             std::unique_lock<std::mutex> lock_mining(mining_lock);
             go_on_mining.wait(lock_mining, []
                               { return mining; });
-
-            // printf("\n+++++++++ test round continue,the round is %d++++++\n",cg->round);
         }
     }
 }

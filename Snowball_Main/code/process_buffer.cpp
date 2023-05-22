@@ -1,6 +1,7 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread.hpp>
 #include <boost/thread/thread.hpp>
+#include <cstdio>
 #include "process_buffer.h"
 
 extern mt19937 rng;
@@ -351,39 +352,6 @@ void process_buffer(string &m, tcp_server *ser, Blockchain *bc, Consensus_Group 
                     all_good = true;
                 }
 
-                int prevpos = 0;
-                int pos = 0;
-                int tot_transactions = 0;
-                while (all_good && ((pos = txs.find("\n", pos + 1)) >= 0))
-                {
-
-                    string l = txs.substr(prevpos, pos - prevpos);
-                    if (fake_transactions || verify_transaction(l))
-                    {
-                        tot_transactions++;
-                    }
-                    else
-                        all_good = false;
-
-                    prevpos = pos + 1;
-                }
-
-                if (tot_transactions != b->nb->no_txs)
-                {
-                    if (tot_transactions * 1.08 >= b->nb->no_txs)
-                    {
-                        if (PRINT_TRANSMISSION_ERRORS)
-                        {
-                            cout << "The number of TXS differ from the one provided earlier: " << tot_transactions << " " << b->nb->no_txs << endl;
-                            cout << sender_port << " " << chain_id << " " << hash << endl;
-                            cout << txs << ":" << endl;
-                        }
-                    }
-                    if (tot_transactions > 0 && p + 2 == positions.size())
-                        break;
-                    continue;
-                }
-
                 if (all_good)
                 {
 
@@ -445,15 +413,18 @@ void process_buffer(string &m, tcp_server *ser, Blockchain *bc, Consensus_Group 
 
                     if (PRINT_VERIFYING_TXS)
                     {
-                        printf("\033[32;1mAll %4d txs are verified \n\033[0m", n->no_txs);
+                        printf("\033[32;1m Received final update block \n\033[0m");
                         fflush(stdout);
                     }
 
                     // Store into the file
                     if (WRITE_BLOCKS_TO_HDD)
                     {
+                        int block_number = (n->consensusPart.round - 1) * CONCURRENCY_BLOCKS + n->consensusPart.order_in_round;
                         string filename = ser->get_server_folder() + "/" + blockhash_to_string(hash);
+                        string filename_of_transaction_pool = string(FOLDER_TRANSACTION_POOL) + +"/_" + my_ip + "_" + to_string(my_port) + "/" + "_body/" + "block_" + to_string(block_number);
                         ofstream file;
+                        ifstream file_of_transaction_pool;
                         try
                         {
                             file.open(filename);
@@ -462,8 +433,19 @@ void process_buffer(string &m, tcp_server *ser, Blockchain *bc, Consensus_Group 
                         {
                             continue;
                         }
-                        file << txs;
+                        try
+                        {
+                            file_of_transaction_pool.open(filename_of_transaction_pool);
+                        }
+                        catch (const std::string &ex)
+                        {
+                            continue;
+                        }
+                        stringstream buffer;
+                        buffer << file_of_transaction_pool.rdbuf();
+                        file << buffer.str();
                         file.close();
+                        file_of_transaction_pool.close();
                     }
 
                     // Remove from hash table
@@ -573,7 +555,7 @@ void process_buffer(string &m, tcp_server *ser, Blockchain *bc, Consensus_Group 
 
                 cg->start_consensus_of_blocks();
                 mining = false;
-                //stop mining for the consensus of concurrent blocks
+                // stop mining for the consensus of concurrent blocks
                 mythread->interrupt();
 
                 pair<string, uint32_t> leader_info = cg->choose_leader();
@@ -626,7 +608,12 @@ void process_buffer(string &m, tcp_server *ser, Blockchain *bc, Consensus_Group 
                 fflush(stdout);
             }
 
-            //加入验证逻辑：看一下cp中的tx_list和相同order_in_round的自己交易池中的区块是否相同
+            // verify the double spent txs in a block
+            if (!verify_pre_block(&cp))
+            {
+                printf("\n========Missing transactions in pre blocks========\n");
+                continue;
+            }
 
             string s = create__have_consensus_block(cp.order_in_round, true);
             ser->write_to_one_peer(sender_ip, sender_port, s);
@@ -689,7 +676,12 @@ void process_buffer(string &m, tcp_server *ser, Blockchain *bc, Consensus_Group 
             if (!cg->is_consensus_started() && nb.consensusPart.round == cg->round)
                 continue;
 
-            //加入验证逻辑：交易哈希表的默克尔根是否和交易一致，这个代号是可以映射的
+            if (!verify_validate_block(&nb))
+            {
+                printf("\n=========verify validate false=======\n");
+                fflush(stdout);
+                continue;
+            }
 
             if (nb.consensusPart.round < cg->round)
             {
@@ -699,8 +691,6 @@ void process_buffer(string &m, tcp_server *ser, Blockchain *bc, Consensus_Group 
                     printf("\033[32;1m%s:%d ASKING to vote on the block\n\033[0m\n", sender_ip.c_str(), sender_port);
                     fflush(stdout);
                 }
-
-                // add verify logic
 
                 map<int, round_info>::iterator iter;
                 iter = cg->history_info.find(nb.consensusPart.round);

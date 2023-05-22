@@ -23,6 +23,9 @@ SOFTWARE.
 #include "transactions.h"
 #include "crypto_stuff.h"
 #include "misc.h"
+#include "params.h"
+#include "verify.h"
+#include <sstream>
 
 using namespace std;
 
@@ -48,34 +51,173 @@ string create_one_transaction()
 	return tx + ":" + sign_tx;
 }
 
-//修改逻辑
 bool create_block_from_transaction_pool(consensus_part *cp, string filename)
 {
+	// store file of block
+	string folder_transaction_pool = string(FOLDER_TRANSACTION_POOL);
+	int block_number = (cp->round - 1) * CONCURRENCY_BLOCKS + cp->order_in_round;
+	string block_filename = folder_transaction_pool + "/_" + my_ip + "_" + to_string(my_port) + "/" + "_body/" + "block_" + to_string(block_number);
+
 	uint32_t no_txs = cp->tx_list.second - cp->tx_list.first;
+	vector<string> leaves;
 
 	if (WRITE_BLOCKS_TO_HDD)
 	{
 		ofstream file;
+		ifstream file_of_transaction_pool;
+
 		try
 		{
 			file.open(filename);
 		}
 		catch (const std::string &ex)
 		{
+			printf("\n\033[33;1m[!] Open file FALSE with path %s\n\033[0m\n", filename.c_str());
+			fflush(stdout);
 			return false;
 		}
+
+		file_of_transaction_pool.open(block_filename.c_str());
+
+		if (!file_of_transaction_pool.is_open())
+		{
+			printf("\n\033[33;1m[!] Open Transaction pool file FALSE with path %s\n\033[0m\n", block_filename.c_str());
+			fflush(stdout);
+			exit(1);
+		}
+
+		string tx_demo = create_one_transaction();
+		int tx_size = tx_demo.size();
+
 		for (int i = 0; i < no_txs; i++)
 		{
-			string tx = create_one_transaction();
-			file << tx << endl;
+			char buffer[tx_size + 100];
+			file_of_transaction_pool.getline(buffer, tx_size + 100, '\n');
+			file << buffer << endl;
+			leaves.push_back(buffer);
 		}
 		file.close();
+		file_of_transaction_pool.close();
 	}
+
+	// create tx_merkel_root
+	uint32_t tot_size_add = (int)pow(2, ceil(log(leaves.size()) / log(2))) - leaves.size();
+	for (int i = 0; i < tot_size_add; i++)
+		leaves.push_back(EMPTY_LEAF);
+	string merkel_root_txs = compute_merkle_tree_root(leaves);
+	cp->merkel_root_of_txs = merkel_root_txs;
 
 	return true;
 }
 
-// with no use
+bool generate_concurrent_blocks(consensus_part *cp)
+{
+
+	string folder_transaction_pool = string(FOLDER_TRANSACTION_POOL);
+	int block_number = (cp->round - 1) * CONCURRENCY_BLOCKS + cp->order_in_round;
+	string filename = folder_transaction_pool + "/_" + my_ip + "_" + to_string(my_port) + "/" + "_header/" + "pre_block_" + to_string(block_number);
+
+	ifstream file_of_transaction_pool;
+	try
+	{
+		file_of_transaction_pool.open(filename);
+	}
+	catch (const std::string &ex)
+	{
+		printf("\n\033[33;1m[!] Open Transaction pool file FALSE with path %s\n\033[0m\n", filename.c_str());
+		fflush(stdout);
+		return false;
+	}
+
+	stringstream buffer;
+	buffer << file_of_transaction_pool.rdbuf();
+	cp->list += buffer.str();
+
+	return true;
+}
+
+bool is_transaction_in_pool(int block_numbers, string l)
+{
+	return true;
+}
+
+bool verify_pre_block(consensus_part *cp)
+{
+
+	int pos = 0;
+	int prevpos = 0;
+	int tot_transaction = 0;
+	int block_number = (cp->round - 1) * CONCURRENCY_BLOCKS + cp->order_in_round;
+
+	while ((pos = cp->list.find("\n", pos + 1)) >= 0)
+	{
+		string l = cp->list.substr(prevpos, pos - prevpos);
+		if (is_transaction_in_pool(block_number, l))
+		{
+			tot_transaction++;
+		}
+		else
+			return false;
+		prevpos = pos + 1;
+	}
+	if (tot_transaction == (cp->tx_list.second - cp->tx_list.first))
+	{
+		return true;
+	}
+	else
+	{
+		printf("\n\033[33;1m[!] Transaction numbers %d differ with %d\n\033[0m\n", tot_transaction, cp->tx_list.second - cp->tx_list.first);
+		fflush(stdout);
+		return false;
+	}
+}
+
+bool verify_validate_block(network_block *nb)
+{
+
+	string folder_transaction_pool = string(FOLDER_TRANSACTION_POOL);
+	int block_number = (nb->consensusPart.round - 1) * CONCURRENCY_BLOCKS + nb->consensusPart.order_in_round;
+	string block_filename = folder_transaction_pool + "/_" + my_ip + "_" + to_string(my_port) + "/" + "_body/" + "block_" + to_string(block_number);
+
+	int no_txs = nb->consensusPart.tx_list.second - nb->consensusPart.tx_list.first;
+	vector<string> leaves;
+	ifstream file_of_transaction_pool;
+	file_of_transaction_pool.open(block_filename.c_str());
+
+	if (!file_of_transaction_pool.is_open())
+	{
+		printf("\n\033[33;1m[!] Open Transaction pool file FALSE with path %s\n\033[0m\n", block_filename.c_str());
+		fflush(stdout);
+		exit(1);
+	}
+
+	string tx_demo = create_one_transaction();
+	int tx_size = tx_demo.size();
+
+	for (int i = 0; i < no_txs; i++)
+	{
+		char buffer[tx_size + 100];
+		file_of_transaction_pool.getline(buffer, tx_size + 100, '\n');
+		leaves.push_back(buffer);
+	}
+	file_of_transaction_pool.close();
+	uint32_t tot_size_add = (int)pow(2, ceil(log(leaves.size()) / log(2))) - leaves.size();
+	for (int i = 0; i < tot_size_add; i++)
+		leaves.push_back(EMPTY_LEAF);
+	string merkel_root_txs = compute_merkle_tree_root(leaves);
+
+	if (nb->consensusPart.merkel_root_of_txs == merkel_root_txs)
+	{
+		return true;
+	}
+	else
+	{
+		printf("\n\033[33;1m[!] Merkel root of txs %s differ with %s\n\033[0m\n", nb->consensusPart.merkel_root_of_txs.c_str(), merkel_root_txs.c_str());
+		fflush(stdout);
+		return false;
+	}
+}
+
 int create_transaction_block(BlockHash hash, string filename)
 {
 

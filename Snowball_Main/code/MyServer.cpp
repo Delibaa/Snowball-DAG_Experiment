@@ -399,7 +399,7 @@ void tcp_server::run_network()
 
     last_peer_connect = time_of_now;
 
-    // 多节点中gossip路由表修改点
+    // gossip choose, with eight nodes
     for (int i = 0; i < peers.size(); i++)
     {
       if (!peers[i].connected /* || peers[i].session == NULL */)
@@ -475,7 +475,7 @@ void tcp_server::run_network()
 
         if (PRINT_SENDING_MESSAGES)
         {
-          printf("\033[34;1mAsking %d: %lx from all peers\033[0m\n", i, hashes[j]);
+          printf("\033[34;1m Asking %d: %lx from all peers\033[0m\n", i, hashes[j]);
           fflush(stdout);
         }
 
@@ -497,7 +497,7 @@ void tcp_server::run_network()
       for (auto it = blocks.begin(); it != blocks.end(); it++)
       {
 
-        string s = create__consensus_block(it->second.round, it->second.order_in_round, it->second.tx_list.first, it->second.tx_list.second);
+        string s = create__consensus_block(&it->second);
         write_to_one_peer(it->first.ip, it->first.port, s);
         if (PRINT_SENDING_MESSAGES)
         {
@@ -548,7 +548,7 @@ void tcp_server::run_network()
 
       if (PRINT_SENDING_MESSAGES)
       {
-        printf("\033[34;1mGotFullBlock %d: %lx from all peers\033[0m\n", it->second, it->first);
+        printf("\033[34;1m GotFullBlock %d: %lx from all peers\033[0m\n", it->second, it->first);
         fflush(stdout);
       }
 
@@ -566,7 +566,7 @@ void tcp_server::run_network()
   if (time_of_now - last_update_commited > UPDATE_COMMITED_TIME_EACH_MILLISECONDS)
   {
 
-    bc->update_blocks_commited_time(cg->round);
+    bc->total_ordering(cg->round);
 
     last_update_commited = time_of_now;
   }

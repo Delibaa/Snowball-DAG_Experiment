@@ -118,7 +118,9 @@ bool verify_message(string message, string signature)
 
     // If no need to verify transactions, then just return true
     if (!VERIFY_TRANSACTIONS)
-        return signature.size() == dummy_signature.size();
+        //!!!!verify problem here, attention
+        // return signature.size() == dummy_signature.size();
+        return true;
 
     int siglen = signature.size() / 2;
     unsigned char *sig = (unsigned char *)malloc(siglen + 1);

@@ -817,11 +817,14 @@ vector<pair<BlockHash, network_block>> Blockchain::get_waiting_for_validate_phas
 	return wvb;
 }
 
-vector<pair<sender_info, consensus_part>>Blockchain::get_waiting_for_request_phase_blocks(unsigned long time_of_now){
+vector<pair<sender_info, consensus_part>> Blockchain::get_waiting_for_request_phase_blocks(unsigned long time_of_now)
+{
 	vector<pair<sender_info, consensus_part>> wrb;
 
-	for(auto it = blocks_in_phase_request.begin(); it != blocks_in_phase_request.end(); it++){
-		if(time_of_now - it->second > REQUEST_OF_BLOCKS_IN_PHASE_REQUEST_INDIVIDUAL_EACH_MILLISECONDS){
+	for (auto it = blocks_in_phase_request.begin(); it != blocks_in_phase_request.end(); it++)
+	{
+		if (time_of_now - it->second > REQUEST_OF_BLOCKS_IN_PHASE_REQUEST_INDIVIDUAL_EACH_MILLISECONDS)
+		{
 
 			wrb.push_back(make_pair(pre_blocks.find(it->first)->second.first, pre_blocks.find(it->first)->second.second));
 			it->second = time_of_now;
@@ -891,7 +894,7 @@ void Blockchain::add_mined_block()
 	mined_blocks++;
 }
 
-void Blockchain::update_blocks_commited_time(int round_now)
+void Blockchain::total_ordering(int round_now)
 {
 
 	unsigned long time_of_now = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
@@ -997,13 +1000,13 @@ bool Blockchain::add_pre_blocks(std::string ip, uint32_t port, consensus_part cp
 
 		sender_info info = {ip, port};
 		pre_blocks.insert(make_pair(cp_tmp.order_in_round, make_pair(info, cp_tmp)));
-		//single pre block time
+		// single pre block time
 		blocks_in_phase_request.insert(make_pair(cp_tmp.order_in_round, 0));
 
 		return true;
 	}
 
-    printf("=======Pre_block with %d in round %d has been received=======",cp_tmp.order_in_round, cp_tmp.round);
+	printf("=======Pre_block with %d in round %d has been received=======", cp_tmp.order_in_round, cp_tmp.round);
 	return false;
 }
 

@@ -29,6 +29,7 @@ typedef struct consensus_part
 	int order_in_round;
 	string merkel_root_of_txs;
 	pair<int, int> tx_list;
+	string list;
 	int verify_1_numbers; // 后续替换成为聚合签名
 	int verify_2_numbers;
 } consensus_part;
@@ -59,7 +60,7 @@ typedef struct networkblocks
 	// time signal
 	unsigned long time_commited[NO_T_DISCARDS];
 	unsigned long time_partial[NO_T_DISCARDS];
-	//consensus part
+	// consensus part
 	consensus_part consensusPart;
 
 } network_block;
@@ -107,7 +108,7 @@ public:
 	void set_block_full(uint32_t chain_id, BlockHash hash, string misc);
 	void add_mined_block();
 
-	void update_blocks_commited_time(int round_now);
+	void total_ordering(int round_now);
 
 	// consensus block part
 	map<BlockHash, pair<int, unsigned long>> blocks_in_phase_validate;
@@ -115,7 +116,7 @@ public:
 
 	map<int, pair<sender_info, consensus_part>> pre_blocks;
 	map<int, unsigned long> blocks_in_phase_request;
-	
+
 	unsigned long total_ask_for_verify1_blocks_in_one_round;
 	unsigned long total_verify_local_block;
 
@@ -125,7 +126,7 @@ public:
 	// latency computing
 	unsigned long long receiving_latency;
 	unsigned long receving_total;
-    
+
 	// consensus block part
 	bool add_total_ask_for_verify_blocks(int round);
 	bool add_total_verify_blocks(int round);

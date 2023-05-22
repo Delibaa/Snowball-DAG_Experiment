@@ -33,7 +33,7 @@ bool parse__ping(vector<std::string> sp, map<string, int> &passed, string &sende
 string create__mining_succeed(bool Certificate, string random, int round);
 bool parse__mining_succeed(vector<std::string> sp, map<string, int> &passed, string &sender_ip, uint32_t &sender_port, bool &Certificate, int &round);
 
-string create__consensus_block(int round, int order, int tx_first, int tx_second);
+string create__consensus_block(consensus_part *cp);
 bool parse__consensus_block(vector<std::string> sp, map<string, int> &passed, string &sender_ip, uint32_t &sender_port, consensus_part &cp);
 
 string create__have_consensus_block(int order_in_round, bool received);
