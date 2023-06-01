@@ -10,6 +10,7 @@ extern unsigned long time_of_start;
 extern unsigned long time_of_consensus_group_start;
 extern string my_ip;
 extern uint32_t my_port;
+extern Transaction_Pool *tp;
 
 extern std::condition_variable go_on_mining;
 extern std::mutex mining_lock;
@@ -919,6 +920,42 @@ void process_buffer(string &m, tcp_server *ser, Blockchain *bc, Consensus_Group 
                     }
                 }
             }
+        }
+        else if (sp[0] == "#transaction")
+        {
+
+            string sender_ip;
+            uint32_t sender_port;
+            string tx;
+            unsigned long time;
+            if (!parse__transaction(sp, passed, sender_ip, sender_port, tx, time))
+            {
+                if (p + 2 == positions.size())
+                    break;
+                continue;
+            }
+
+            if (PRINT_RECEIVING_MESSAGES)
+            {
+                printf("\033[32;1m[+] Receiving transactions from %s:%d\n\033[0m\n", sender_ip.c_str(), sender_port);
+                fflush(stdout);
+            }
+
+            bool added;
+            if (sender_ip == "Client")
+            {
+                tp->add_tx_in_pool(tx, time, added);
+
+                if (added)
+                {
+                    string s = create__transaction(tx, time);
+                    ser->write_to_all_peers(s);
+                }
+
+                continue;
+            }
+            tp->add_tx_in_pool(tx, time, added);
+
         }
     }
 

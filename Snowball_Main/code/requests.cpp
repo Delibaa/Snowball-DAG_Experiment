@@ -474,6 +474,36 @@ bool parse__answer_verified_1_info(vector<std::string> sp, map<string, int> &pas
   return true;
 }
 
+string create__transaction(string tx, unsigned long time)
+{
+  string s = "#transaction," + my_ip + "," + to_string(my_port) + "," + tx + "," + to_string(time);
+  return s;
+}
+
+bool parse__transaction(vector<std::string> sp, map<string, int> &passed, string &sender_ip, uint32_t &sender_port, string &tx, unsigned long &time)
+{
+
+  if (sp.size() < 4)
+    return false;
+  if (key_present(sp[0] + sp[1] + sp[2] + sp[3], passed))
+    return false;
+
+  bool pr = true;
+  sender_ip = sp[1];
+  sender_port = safe_stoi(sp[2], pr);
+  tx = sp[3];
+  time = safe_stoull(sp[4],pr);
+
+  if (PRINT_TRANSMISSION_ERRORS && !(pr && sender_ip.size() > 0))
+  {
+    cout << "Could not get proper values of transaction" << endl;
+    cout << pr << " " << sender_ip << ":" << sender_port << " " << endl;
+    return false;
+  }
+
+  return true;
+}
+
 bool key_present(string key, map<string, int> &passed)
 {
   if (passed.find(key) != passed.end())

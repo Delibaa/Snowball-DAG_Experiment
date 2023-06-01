@@ -125,6 +125,7 @@ private:
   unsigned long last_print_blockchain;
   unsigned long last_peer_connect;
   unsigned long last_update_commited;
+  unsigned long last_update_transaction_pool;
   unsigned long no_verified_transactions = 0;
   unsigned long bytes_received;
   unsigned long bytes_txs_received;

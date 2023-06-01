@@ -45,6 +45,9 @@ bool parse__verified_1_info(vector<std::string> sp, map<string, int> &passed, st
 string create__answer_verified_1_info(BlockHash hash, int votes);
 bool parse__answer_verified_1_info(vector<std::string> sp, map<string, int> &passed, string &sender_ip, uint32_t &sender_port, BlockHash &hash, int &votes);
 
+string create__transaction(string tx, unsigned long time);
+bool parse__transaction(vector<std::string> sp, map<string, int> &passed, string &sender_ip, uint32_t &sender_port, string &tx, unsigned long &time);
+
 bool key_present(string key, map<string, int> &passed);
 
 #endif

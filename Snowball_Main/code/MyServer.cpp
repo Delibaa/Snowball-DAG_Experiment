@@ -51,6 +51,8 @@ extern tcp_server *ser;
 extern Blockchain *bc;
 extern mt19937 rng;
 extern Consensus_Group *cg;
+extern Transaction_Pool *tp;
+extern unsigned long time_of_pool_start;
 
 boost::mutex mtx;
 
@@ -156,7 +158,7 @@ tcp_connection::tcp_connection(boost::asio::io_service &io_service)
 
 tcp_server::tcp_server(boost::asio::io_service &io_service, string ip, uint32_t port)
     : acceptor_(io_service, tcp::endpoint(tcp::v4(), port)), my_ip(ip), my_port(port), t(new boost::asio::deadline_timer(io_service)),
-      last_ask_for_incomplete(0), last_ask_for_vote(0), last_request(0), last_print_blockchain(0), last_update_commited(0), bytes_received(0), bytes_txs_received(0), folder_blockchain(string(FOLDER_BLOCKCHAIN)), folder_transaction_pool(string(FOLDER_TRANSACTION_POOL))
+      last_ask_for_incomplete(0), last_ask_for_vote(0), last_request(0), last_print_blockchain(0), last_update_commited(0), last_update_transaction_pool(0), bytes_received(0), bytes_txs_received(0), folder_blockchain(string(FOLDER_BLOCKCHAIN)), folder_transaction_pool(string(FOLDER_TRANSACTION_POOL))
 {
   start_accept();
 
@@ -571,6 +573,15 @@ void tcp_server::run_network()
     last_update_commited = time_of_now;
   }
 
+  // Update transaction pool
+  // if (time_of_now - time_of_pool_start > EPOCH_TIME)
+  // {
+
+  //   tp->write_to_file();
+
+  //   time_of_pool_start = time_of_now;
+  // }
+
   // Pings
   if (no_pings < PING_REPEAT && next_ping < time_of_now)
   {
@@ -611,12 +622,8 @@ void tcp_server::run_network()
       printf("\033[0m");
     }
     printf("\n");
-    // no txs, add additional data
-
-    unsigned long bytes_total = bytes_received + bytes_txs_received;
-
     printf("\n=============== [NETWORK THROUGHPUT:] MB: %.1f   MB/s: %.2f    GB/h:  %.1f  ::::  txs MB/s:  %.2f  txs GB/h:  %.1f \n",
-           bytes_total / (1024.0 * 1024), bytes_total / (1024.0 * 1024) / secs, bytes_total / (1024.0 * 1024) / secs * 3600 / 1000,
+           bytes_received / (1024.0 * 1024), bytes_received / (1024.0 * 1024) / secs, bytes_received / (1024.0 * 1024) / secs * 3600 / 1000,
            bytes_txs_received / (1024.0 * 1024) / secs, bytes_txs_received / (1024.0 * 1024) / secs * 3600 / 1000);
 
     printf("\n=============== [TXS       :] Verified :  %8ld     Rate: %.0f txs/s  \n", no_verified_transactions, no_verified_transactions / secs);

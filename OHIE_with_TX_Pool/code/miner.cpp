@@ -104,7 +104,7 @@ uint32_t mine_new_block(Blockchain *bc)
 	// Create file holding the whole block
 	// Supposedly composed of transactions
 	int bn = bc->get_number_of_pool_block();
-	uint32_t no_txs = create_transaction_block(new_block, ser->get_server_folder() + "/" + blockhash_to_string(new_block), ser->get_transaction_pool_folder() + "/" + "block_" + to_string(bn));
+	uint32_t no_txs = create_transaction_block(new_block, ser->get_server_folder() + "/" + blockhash_to_string(new_block), ser->get_transaction_pool_folder() + "/_full_block/" + "block_" + to_string(bn));
 	if (0 == no_txs)
 	{
 		printf("Cannot create the file with transactions\n");

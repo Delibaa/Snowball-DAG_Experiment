@@ -23,6 +23,7 @@
 #include "configuration.h"
 #include "misc.h"
 #include "Consensus_Group.h"
+#include "Transaction_Pool.h"
 
 using boost::asio::ip::tcp;
 using namespace std;
@@ -30,11 +31,13 @@ using namespace std::chrono;
 
 Blockchain *bc;
 Consensus_Group *cg;
+Transaction_Pool *tp;
 string my_ip = "badip";
 uint32_t my_port;
 mt19937 rng;
 unsigned long time_of_start;
 unsigned long time_of_consensus_group_start;
+unsigned long time_of_pool_start;
 boost::thread *mythread;
 tcp_server *ser = NULL;
 
@@ -145,6 +148,13 @@ int main(int argc, char **argv)
     cg = new Consensus_Group();
 
     /*
+     * The Transaction_Pool
+     * Setting epoch_time of 60 sec
+     */
+    tp = new Transaction_Pool();
+    time_of_pool_start = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+
+    /*
      * The server
      * start accept right away
      */
@@ -178,7 +188,7 @@ int main(int argc, char **argv)
     }
 
     /*
-     * Peers
+     * Peers of full node, flat communication
      */
     ifstream infile(argv[2]);
     string l;
@@ -243,6 +253,7 @@ int main(int argc, char **argv)
      */
     server.run_network();
     time_of_start = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+    time_of_pool_start = time_of_start;
     io_service.run();
 
     return 0;

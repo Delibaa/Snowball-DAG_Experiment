@@ -12,6 +12,7 @@
 #include "crypto_stuff.h"
 #include "misc.h"
 #include "Consensus_Group.h"
+#include "Transaction_Pool.h"
 #include "miner.h"
 
 using namespace std;
